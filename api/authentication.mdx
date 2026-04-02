@@ -1,0 +1,120 @@
+---
+title: "Authentication"
+description: "Authenticate with the Trenova API using session cookies or API keys"
+---
+
+Trenova supports two authentication methods: **session cookies** (for browser-based UI usage) and **API keys** (for programmatic access).
+
+## API key authentication
+
+API keys are the recommended method for scripts, integrations, and server-to-server calls.
+
+Pass your key as a Bearer token in the `Authorization` header:
+
+```bash
+curl https://your-domain/api/v1/shipments \
+  -H "Authorization: Bearer trv_your_api_key_here"
+```
+
+API key IDs are prefixed with `ak_`. The full key value (shown once at creation) begins with `trv_`.
+
+To create an API key, see [API Keys](/developer/api-keys).
+
+## Session authentication
+
+Session auth is used by the Trenova web UI. You can also use it from scripts that manage cookies.
+
+### Login
+
+```
+POST /api/v1/auth/login
+```
+
+<ParamField body="emailAddress" type="string" required>
+  The user's email address.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  The user's password.
+</ParamField>
+
+**Example:**
+
+```bash
+curl -X POST https://your-domain/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -c cookies.txt \
+  -d '{"emailAddress": "admin@trenova.app", "password": "admin123!"}'
+```
+
+A successful login sets an `HttpOnly` session cookie and returns the user object. Subsequent requests in the same session send the cookie automatically.
+
+**Response fields:**
+
+<ResponseField name="user" type="object">
+  The authenticated user record.
+  <Expandable title="properties">
+    <ResponseField name="id" type="string">User's PULID identifier (prefix `usr_`).</ResponseField>
+    <ResponseField name="emailAddress" type="string">User's email address.</ResponseField>
+    <ResponseField name="name" type="string">User's display name.</ResponseField>
+    <ResponseField name="username" type="string">User's username.</ResponseField>
+    <ResponseField name="currentOrganizationId" type="string">Active organization ID.</ResponseField>
+    <ResponseField name="status" type="string">User account status: `Active` or `Inactive`.</ResponseField>
+    <ResponseField name="timezone" type="string">User's configured timezone.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="expiresAt" type="integer">
+  Unix timestamp when the session expires.
+</ResponseField>
+
+<ResponseField name="sessionId" type="string">
+  The session identifier.
+</ResponseField>
+
+### Validate session
+
+```
+POST /api/v1/auth/validate-session
+```
+
+Returns the current user if the session cookie is valid. Useful for checking auth state.
+
+### Logout
+
+```
+POST /api/v1/auth/logout
+```
+
+Ends the current session and clears the session cookie.
+
+```bash
+curl -X POST https://your-domain/api/v1/auth/logout \
+  -b cookies.txt
+```
+
+## Session settings
+
+Sessions are configured by your administrator in `config.prod.yaml`:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `maxAge` | `24h` | How long a session stays valid |
+| `secure` | `true` | Requires HTTPS (set to `false` only for local dev) |
+| `sameSite` | `lax` | Cookie SameSite policy |
+| `domain` | your domain | Cookie scope |
+
+## Authentication errors
+
+| Status | Meaning | Fix |
+|--------|---------|-----|
+| `401 Unauthorized` | No session cookie or API key was provided, or the key is revoked/expired | Check your `Authorization` header or log in again |
+| `403 Forbidden` | Authenticated but lacks permission for the requested resource | Ask your admin to assign the required role |
+
+## Permissions
+
+Every protected endpoint requires a specific permission (resource + operation). For example, listing shipments requires `Read` on the `Shipment` resource. Permissions are granted through [roles](/admin/users-roles).
+
+<Note>
+  If you receive a `403` on an endpoint you expect to access, ask your administrator to verify your role assignments in **Admin → Users & Roles**.
+</Note>

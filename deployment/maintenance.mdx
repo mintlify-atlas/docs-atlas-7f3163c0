@@ -1,0 +1,427 @@
+---
+title: "Maintenance"
+description: "Backup, upgrades, log management, and health monitoring for Trenova"
+---
+
+## Deployment checklist
+
+Use this checklist before, during, and after each deployment.
+
+### Pre-deployment
+
+- [ ] Hardware meets minimum requirements (4 CPU cores, 8 GB RAM, 50 GB SSD)
+- [ ] Docker Engine 24.0+ installed
+- [ ] Docker Compose v2 installed
+- [ ] OpenSSL installed
+- [ ] Ports 80 and 443 available: `netstat -tuln | grep -E ':80|:443'`
+- [ ] Domain / hostname decided
+- [ ] DNS configured for main domain **and** storage subdomain (e.g. `trenova.local` + `storage.trenova.local`)
+- [ ] Firewall rules configured
+
+### Deployment
+
+- [ ] Repository cloned to target machine
+- [ ] `setup.sh` executed successfully (or `docker compose pull` + `up -d` for production)
+- [ ] All services healthy: `docker compose ps`
+- [ ] No restart loops in logs: `docker compose logs --tail=50`
+- [ ] Migrations completed without errors
+- [ ] Seed data applied
+
+### Post-deployment
+
+- [ ] Admin login works (`admin@trenova.app` / `admin123!`)
+- [ ] Default admin password changed
+- [ ] Root CA certificate extracted (if using self-signed certificates)
+- [ ] Certificate distributed to end users (include storage subdomain)
+- [ ] File upload / download works (test a document attachment)
+- [ ] Application loads correctly in browser
+- [ ] API health check passes: `curl https://your-domain/api/v1/health`
+
+### Security hardening
+
+- [ ] `.env` file permissions set to `600`: `chmod 600 .env`
+- [ ] Default passwords replaced in `.env`
+- [ ] Firewall configured to allow only necessary ports
+- [ ] Rate limiting verified (send rapid requests and confirm 429 responses)
+- [ ] HTTPS enforced (HTTP redirects to HTTPS)
+- [ ] Security headers present (verify at [securityheaders.com](https://securityheaders.com))
+
+### Operations readiness
+
+- [ ] Backup strategy documented and tested
+- [ ] Log rotation configured
+- [ ] Monitoring / alerting set up
+- [ ] Recovery procedure documented and tested
+
+---
+
+## Backup
+
+### Database backup
+
+```bash
+# Create a timestamped SQL dump
+docker compose exec postgres pg_dump -U trenova trenova_db > backup_$(date +%Y%m%d_%H%M%S).sql
+```
+
+**Automated daily backup via crontab:**
+
+```bash
+# Edit crontab with: crontab -e
+# Runs at 02:00 every day, compresses the dump, and stores it in /backups
+0 2 * * * cd /opt/trenova/deploy && docker compose exec -T postgres pg_dump -U trenova trenova_db | gzip > /backups/trenova_$(date +\%Y\%m\%d).sql.gz
+```
+
+### Volume backup
+
+Stop services first to ensure a consistent snapshot:
+
+```bash
+docker compose stop
+
+# Back up all persistent volumes
+docker run --rm -v deploy_postgres_data:/data -v $(pwd):/backup alpine tar czf /backup/postgres_data.tar.gz /data
+docker run --rm -v deploy_redis_data:/data -v $(pwd):/backup alpine tar czf /backup/redis_data.tar.gz /data
+docker run --rm -v deploy_minio_data:/data -v $(pwd):/backup alpine tar czf /backup/minio_data.tar.gz /data
+docker run --rm -v deploy_meili_data:/data -v $(pwd):/backup alpine tar czf /backup/meili_data.tar.gz /data
+
+docker compose start
+```
+
+### Restore from backup
+
+```bash
+# Stop all services
+docker compose down
+
+# Start only the database
+docker compose up -d postgres
+
+# Restore from SQL dump
+docker compose exec -T postgres psql -U trenova trenova_db < backup.sql
+
+# Or restore from a volume archive
+docker run --rm -v deploy_postgres_data:/data -v $(pwd):/backup alpine tar xzf /backup/postgres_data.tar.gz -C /
+
+# Bring everything back up
+docker compose up -d
+```
+
+---
+
+## Upgrades
+
+Trenova automatically checks for new releases and shows a banner in the admin UI when an update is available. Only users with admin permissions see the notification.
+
+### Using the CLI (recommended)
+
+```bash
+# Check for available updates
+trenova update check
+
+# View current version and update status
+trenova update status
+
+# Apply the latest update
+trenova update apply
+
+# Apply a specific version
+trenova update apply 1.2.0
+
+# Roll back to the previous version
+trenova update rollback
+```
+
+**CLI flags:**
+
+| Flag | Description |
+|------|-------------|
+| `--skip-backup` | Skip creating a backup before the update |
+| `--skip-migrations` | Skip running database migrations |
+| `--force` | Force the update even if already on the latest version |
+| `--compose-file` | Specify a Compose file (default: `docker-compose.prod.yml`) |
+
+### Manual upgrade
+
+```bash
+# 1. Back up the current installation
+docker compose exec -T postgres pg_dump -U trenova trenova_db | gzip > backup_pre_upgrade.sql.gz
+
+# 2. Pull the new images
+export TRENOVA_VERSION=1.2.0   # or 'latest'
+docker compose -f docker-compose.prod.yml pull
+
+# 3. Stop all services
+docker compose -f docker-compose.prod.yml down
+
+# 4. Run database migrations
+docker compose -f docker-compose.prod.yml run --rm tms-migrate
+
+# 5. Start all services
+docker compose -f docker-compose.prod.yml up -d
+
+# 6. Verify health
+docker compose -f docker-compose.prod.yml ps
+curl https://your-domain/api/v1/health
+```
+
+---
+
+## Log management
+
+### View logs
+
+```bash
+# All services
+docker compose logs
+
+# Follow a specific service in real time
+docker compose logs -f tms-api
+
+# Last 100 lines from a service
+docker compose logs --tail=100 tms-api
+
+# Last 50 lines from all services
+docker compose logs --tail=50
+```
+
+### Docker log rotation
+
+Configure log rotation in `/etc/docker/daemon.json` to prevent unbounded disk growth:
+
+```json
+{
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "100m",
+    "max-file": "3"
+  }
+}
+```
+
+Restart the Docker daemon to apply:
+
+```bash
+sudo systemctl restart docker
+```
+
+### External log aggregation
+
+Forward logs to a centralised syslog server by adding a `logging` block to services in `docker-compose.yml`:
+
+```yaml
+services:
+  tms-api:
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "tcp://logserver:514"
+        tag: "trenova-api"
+```
+
+---
+
+## Health monitoring
+
+### API health endpoint
+
+```
+GET /api/v1/health
+```
+
+Returns HTTP 200 when the API is operational. Use this endpoint with any uptime monitoring tool.
+
+### Basic health check script
+
+```bash
+#!/bin/bash
+DOMAIN="your-domain.com"
+
+# Check API health
+if ! curl -sf "https://${DOMAIN}/api/v1/health" > /dev/null; then
+    echo "API health check failed"
+    # Insert your alerting command here
+fi
+
+# Check container health status
+unhealthy=$(docker compose ps --format json | jq -r 'select(.Health != "healthy" and .Health != "") | .Service')
+if [ -n "$unhealthy" ]; then
+    echo "Unhealthy services: $unhealthy"
+    # Insert your alerting command here
+fi
+```
+
+Schedule this with cron to run every minute:
+
+```bash
+* * * * * /opt/trenova/scripts/health-check.sh >> /var/log/trenova-health.log 2>&1
+```
+
+### Prometheus metrics
+
+Enable metrics in `config/config.prod.yaml`:
+
+```yaml
+monitoring:
+  metrics:
+    enabled: true
+    port: 9090
+    path: /metrics
+```
+
+Then expose the port in `docker-compose.yml` and add a scrape target to your Prometheus configuration:
+
+```yaml
+scrape_configs:
+  - job_name: trenova
+    static_configs:
+      - targets: ['trenova-host:9090']
+```
+
+---
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Container fails to start">
+    Check the container logs and status:
+
+    ```bash
+    docker compose logs <service-name>
+    docker compose logs tms-api --tail=100
+    docker compose ps -a
+    ```
+
+    Common causes:
+
+    - **Missing environment variables** — verify all required values are set in `.env`.
+    - **Port already in use** — check with `netstat -tuln | grep -E ':80|:443'`.
+    - **Insufficient memory** — inspect usage with `docker stats`.
+  </Accordion>
+
+  <Accordion title="Database connection refused">
+    Symptoms: `tms-api` fails to start, logs show "connection refused" to `postgres` or `pgbouncer`.
+
+    ```bash
+    # Check postgres health
+    docker compose ps postgres
+
+    # Inspect postgres logs
+    docker compose logs postgres
+
+    # Check pgbouncer
+    docker compose ps pgbouncer
+    docker compose logs pgbouncer
+
+    # Verify credentials match between .env and config.prod.yaml
+    grep DATABASE .env
+
+    # Restart the database stack
+    docker compose restart postgres pgbouncer
+    ```
+  </Accordion>
+
+  <Accordion title="Certificate not trusted">
+    Symptoms: browser shows `NET::ERR_CERT_AUTHORITY_INVALID`, or `curl` reports "SSL certificate problem".
+
+    1. Extract and install the Caddy root CA on the client machine — see [TLS Certificates](/deployment/tls-certificates).
+    2. Verify the certificate is trusted:
+
+    ```bash
+    # Linux
+    openssl s_client -connect your-domain:443 -CAfile /etc/ssl/certs/ca-certificates.crt
+
+    # macOS
+    security find-certificate -a -p /Library/Keychains/System.keychain | openssl x509 -text
+    ```
+  </Accordion>
+
+  <Accordion title="Session / login issues">
+    Symptoms: login succeeds but immediately logs out, or "Invalid session" errors appear.
+
+    1. Verify `session.domain` in `config/config.prod.yaml` matches your actual domain exactly.
+    2. Confirm `secure: true` is set — this is required for HTTPS deployments.
+    3. Check that the server's system clock is synchronised (`timedatectl status`).
+
+    ```yaml
+    security:
+      session:
+        domain: your-actual-domain.com  # Must match DOMAIN in .env
+        secure: true                     # Must be true for HTTPS
+    ```
+  </Accordion>
+
+  <Accordion title="CORS errors">
+    Symptoms: browser console shows CORS errors, API requests are blocked.
+
+    1. Confirm `VITE_API_URL` in `.env` matches the actual domain (including scheme).
+    2. Verify Caddy is routing `/api/*` correctly.
+    3. Inspect the actual request URLs in the browser network tab.
+
+    If the frontend was built with the wrong `VITE_API_URL`, rebuild the Caddy image:
+
+    ```bash
+    VITE_API_URL=https://your-domain.com/api/v1 docker compose build caddy
+    docker compose up -d caddy
+    ```
+  </Accordion>
+
+  <Accordion title="Migration failures">
+    Symptoms: `tms-migrate` container exits with an error, database tables are missing.
+
+    ```bash
+    # Inspect migration logs
+    docker compose logs tms-migrate
+
+    # Re-run migrations manually
+    docker compose run --rm tms-api db migrate
+    ```
+
+    If the database is corrupted, you can reset it (**this will delete all data**):
+
+    ```bash
+    docker compose down -v
+    docker volume rm deploy_postgres_data
+    docker compose up -d postgres
+    # Wait for postgres to become healthy, then:
+    docker compose run --rm tms-api db migrate
+    docker compose run --rm tms-api db seed
+    ```
+  </Accordion>
+
+  <Accordion title="Service dependency issues">
+    Symptoms: services start in the wrong order, "connection refused" errors during startup.
+
+    Start the infrastructure services first, wait for them to become healthy, then start the application services:
+
+    ```bash
+    docker compose up -d postgres pgbouncer redis minio meilisearch
+    docker compose up -d temporal
+    docker compose run --rm tms-api db migrate
+    docker compose up -d tms-api tms-worker caddy
+    ```
+  </Accordion>
+
+  <Accordion title="High memory usage">
+    Symptoms: OOM kills in `docker compose logs`, slow or unresponsive application.
+
+    ```bash
+    # Check per-container memory usage
+    docker stats
+    ```
+
+    Options:
+    - Increase the host's RAM.
+    - Raise the `memory` limit for the affected service in `docker-compose.yml` (see [Configuration](/deployment/configuration#resource-limits-tuning)).
+    - Reduce `maxOpenConns` and `poolSize` values in `config.prod.yaml` to lower the memory footprint of connection pools.
+  </Accordion>
+</AccordionGroup>
+
+<CardGroup cols={2}>
+  <Card title="Deployment overview" icon="rocket" href="/deployment/overview">
+    Hardware requirements and quick start guide.
+  </Card>
+  <Card title="Configuration" icon="sliders" href="/deployment/configuration">
+    Environment variables and application settings.
+  </Card>
+</CardGroup>

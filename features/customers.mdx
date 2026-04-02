@@ -1,0 +1,147 @@
+---
+title: "Customer Management"
+description: "Manage customers, contacts, and delivery requirements"
+---
+
+## Overview
+
+Customers in Trenova are the bill-to parties for your shipments. Each customer record holds identification details, a physical address, geocoded location data, and two optional profiles — a **billing profile** and an **email profile** — that control how invoices are generated and delivered.
+
+---
+
+## Customer record
+
+| Field | Description |
+|---|---|
+| **Code** | Short identifier, up to 10 characters — required and unique per organization |
+| **Name** | Full customer name, up to 255 characters — required |
+| **Status** | `Active` or `Inactive` |
+| **Address Line 1** | Street address — required |
+| **Address Line 2** | Suite, unit, or secondary address line |
+| **City** | City name — required |
+| **State** | US state — required |
+| **Postal Code** | US ZIP code (5-digit or ZIP+4 format) — required |
+| **Is Geocoded** | Whether Trenova has resolved a lat/long for this address |
+| **Longitude / Latitude** | Geocoordinates used for distance calculations |
+| **Place ID** | External geocoding reference (e.g., Google Places ID) |
+| **External ID** | Your CRM or ERP system identifier for this customer |
+| **Allow Consolidation** | Whether this customer's shipments can be consolidated |
+| **Exclusive Consolidation** | Require that consolidation groups contain only this customer's shipments |
+| **Consolidation Priority** | Order in which this customer's shipments are considered for consolidation (default: 1) |
+
+<Note>
+When `ExclusiveConsolidation` is enabled, `AllowConsolidation` must also be true. Trenova validates this combination at save time.
+</Note>
+
+---
+
+## Customer billing profile
+
+The **billing profile** is a one-to-one child record that configures how invoices are generated, what payment terms apply, and how credit is managed for each customer.
+
+### Billing cycle and payment terms
+
+| Field | Description |
+|---|---|
+| **Billing Cycle Type** | How often invoices are generated |
+| **Billing Cycle Day of Week** | For weekly cycles, which day to run billing |
+| **Payment Term** | Standard net terms |
+| **Billing Currency** | 3-letter ISO currency code (default: `USD`) |
+
+**Billing cycle types:** `Immediate`, `Daily`, `Weekly`, `BiWeekly`, `Monthly`, `Quarterly`, `PerShipment`
+
+**Payment terms:** `Net10`, `Net15`, `Net30`, `Net45`, `Net60`, `Net90`, `DueOnReceipt`
+
+### Invoice configuration
+
+| Field | Description |
+|---|---|
+| **Invoice Method** | `Individual` (one invoice per shipment), `Summary`, or `SummaryWithDetail` |
+| **Invoice Number Format** | `Default`, `CustomPrefix`, or `POBased` |
+| **Customer Invoice Prefix** | Custom prefix applied when format is `CustomPrefix` |
+| **Invoice Copies** | Number of invoice copies to generate |
+| **Summary Transmit on Generation** | Auto-transmit summary invoices when generated |
+| **Allow Invoice Consolidation** | Combine multiple shipments onto a single invoice |
+| **Consolidation Period Days** | Lookback window for invoice consolidation (default: 7 days) |
+| **Consolidation Group By** | How to group shipments: `None`, `Location`, `PONumber`, `BOL`, or `Division` |
+| **Require PO Number** | Block invoicing if no PO number is on the shipment |
+| **Require BOL Number** | Block invoicing if no BOL is on the shipment |
+| **Require Delivery Number** | Block invoicing if no delivery confirmation number is on the shipment |
+| **Billing Notes** | Free-text notes visible to billing staff |
+
+### Credit management
+
+| Field | Description |
+|---|---|
+| **Credit Status** | Current credit standing |
+| **Credit Limit** | Maximum outstanding balance allowed |
+| **Credit Balance** | Current balance against the credit limit |
+| **Enforce Credit Limit** | Block new shipments when the limit is reached |
+| **Auto Credit Hold** | Automatically place a hold when the credit limit is exceeded |
+| **Credit Hold Reason** | Explanation for the current hold |
+
+**Credit status values:** `Active`, `Warning`, `Hold`, `Suspended`, `Review`
+
+### Late charges
+
+| Field | Description |
+|---|---|
+| **Apply Late Charges** | Enable late payment fees |
+| **Late Charge Rate** | Percentage rate applied to overdue balances |
+| **Grace Period Days** | Days after the due date before late charges begin |
+| **Tax Exempt** | Whether this customer is exempt from sales tax |
+| **Tax Exempt Number** | Exemption certificate number |
+
+### Automation settings
+
+| Field | Description |
+|---|---|
+| **Auto Transfer** | Automatically transfer completed shipments to billing |
+| **Auto Mark Ready to Bill** | Automatically set completed shipments to `ReadyToInvoice` |
+| **Auto Bill** | Automatically generate invoices when shipments are ready |
+| **Auto Apply Accessorials** | Automatically add qualifying accessorial charges |
+| **Validate Customer Rates** | Check that rates exist for this customer before dispatching |
+| **Enforce Customer Billing Requirements** | Require all billing fields before generating an invoice |
+| **Has Billing Control Overrides** | Whether this profile overrides organization-level billing defaults |
+
+### Detention billing
+
+| Field | Description |
+|---|---|
+| **Detention Billing Enabled** | Enable per-stop detention charges |
+| **Detention Free Minutes** | Minutes at a stop before detention begins (default: 120) |
+| **Detention Rate Per Hour** | Hourly rate charged after free minutes expire |
+| **Count Late Only on Appointment Stops** | Restrict late calculations to appointment-scheduled stops |
+| **Count Detention Only on Appointment Stops** | Restrict detention calculations to appointment-scheduled stops |
+
+### GL account links
+
+The billing profile can link to specific GL accounts for automatic revenue and AR posting:
+
+| Field | Description |
+|---|---|
+| **Revenue Account** | GL account to credit when revenue is recognized |
+| **AR Account** | GL account to debit for accounts receivable |
+
+---
+
+## Email profile
+
+The **email profile** controls how invoices and documents are electronically delivered to the customer. It is a separate one-to-one child record on the customer.
+
+---
+
+<CardGroup cols={2}>
+  <Card title="Customers API" icon="code" href="/api/customers">
+    Full API reference for customer management
+  </Card>
+  <Card title="Billing & Finance" icon="dollar-sign" href="/features/billing">
+    GL accounts, accessorial charges, and formula templates
+  </Card>
+  <Card title="Shipment Management" icon="package" href="/features/shipments">
+    Assigning customers to shipments and consolidation groups
+  </Card>
+  <Card title="Organization Settings" icon="building" href="/admin/organizations">
+    Organization-level billing defaults
+  </Card>
+</CardGroup>

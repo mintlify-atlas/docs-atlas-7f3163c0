@@ -1,0 +1,270 @@
+---
+title: "Fleet Codes API"
+description: "Manage fleet code groupings for organizing your fleet"
+---
+
+Fleet codes are organizational groupings that let you segment tractors and trailers into named fleets. Each fleet code can carry performance goals (revenue, mileage, deadhead) and is overseen by a designated manager. You can create, read, update, and search fleet codes through this API.
+
+## Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/v1/fleet-codes/` | List fleet codes |
+| `GET` | `/api/v1/fleet-codes/:fleetCodeID` | Get a single fleet code |
+| `POST` | `/api/v1/fleet-codes/` | Create a fleet code |
+| `PUT` | `/api/v1/fleet-codes/:fleetCodeID` | Replace a fleet code |
+| `PATCH` | `/api/v1/fleet-codes/:fleetCodeID` | Partially update a fleet code |
+| `GET` | `/api/v1/fleet-codes/select-options/` | List fleet codes for select/autocomplete inputs |
+
+---
+
+## GET /api/v1/fleet-codes/
+
+Returns a paginated list of fleet codes for the authenticated organization.
+
+### Query parameters
+
+<ParamField query="query" type="string">
+  Full-text search across `code` and `description`.
+</ParamField>
+
+<ParamField query="status" type="string">
+  Filter by status. Either `Active` or `Inactive`.
+</ParamField>
+
+<ParamField query="includeManagerDetails" type="boolean">
+  When `true`, expands the `manager` relation to include the full user object.
+</ParamField>
+
+<ParamField query="limit" type="integer">
+  Number of records per page. Min `1`, max `100`. Defaults to `10`.
+</ParamField>
+
+<ParamField query="offset" type="integer">
+  Zero-based page offset. Defaults to `0`.
+</ParamField>
+
+### Example response
+
+```json
+{
+  "count": 1,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": "fc_01j9z...",
+      "code": "WEST",
+      "status": "Active",
+      "description": "Western region fleet",
+      "color": "#3B82F6",
+      "revenueGoal": 95000.00,
+      "deadheadGoal": 5.50,
+      "mileageGoal": 12000.00,
+      "managerId": "usr_01j9z...",
+      "businessUnitId": "bu_01j9z...",
+      "organizationId": "org_01j9z...",
+      "version": 1,
+      "createdAt": 1712000000,
+      "updatedAt": 1712000000
+    }
+  ]
+}
+```
+
+---
+
+## GET /api/v1/fleet-codes/:fleetCodeID
+
+Returns a single fleet code by ID.
+
+### Path parameters
+
+<ParamField path="fleetCodeID" type="string" required>
+  The fleet code ID (prefixed `fc_`).
+</ParamField>
+
+---
+
+## POST /api/v1/fleet-codes/
+
+Creates a new fleet code. Returns `201 Created`.
+
+### Request body
+
+<ParamField body="code" type="string" required>
+  Short alphanumeric code that identifies this fleet (e.g., `WEST`). 1–10 characters.
+</ParamField>
+
+<ParamField body="managerId" type="string" required>
+  ID of the user who manages this fleet.
+</ParamField>
+
+<ParamField body="status" type="string">
+  `Active` or `Inactive`. Defaults to `Active`.
+</ParamField>
+
+<ParamField body="description" type="string">
+  Human-readable description of the fleet group.
+</ParamField>
+
+<ParamField body="color" type="string">
+  Hex color code used for UI display (e.g., `#3B82F6`). Max 10 characters.
+</ParamField>
+
+<ParamField body="revenueGoal" type="number">
+  Target revenue in dollars for this fleet over the reporting period.
+</ParamField>
+
+<ParamField body="deadheadGoal" type="number">
+  Target deadhead percentage for this fleet (e.g., `5.5` for 5.5%).
+</ParamField>
+
+<ParamField body="mileageGoal" type="number">
+  Target total mileage for this fleet over the reporting period.
+</ParamField>
+
+### Example request
+
+```bash
+curl -X POST https://api.trenova.app/api/v1/fleet-codes/ \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code": "WEST",
+    "managerId": "usr_01j9z...",
+    "status": "Active",
+    "description": "Western region fleet",
+    "color": "#3B82F6",
+    "revenueGoal": 95000.00,
+    "deadheadGoal": 5.50,
+    "mileageGoal": 12000.00
+  }'
+```
+
+### Example response
+
+```json
+{
+  "id": "fc_01j9z...",
+  "code": "WEST",
+  "status": "Active",
+  "description": "Western region fleet",
+  "color": "#3B82F6",
+  "revenueGoal": 95000.00,
+  "deadheadGoal": 5.50,
+  "mileageGoal": 12000.00,
+  "managerId": "usr_01j9z...",
+  "businessUnitId": "bu_01j9z...",
+  "organizationId": "org_01j9z...",
+  "version": 1,
+  "createdAt": 1712000000,
+  "updatedAt": 1712000000
+}
+```
+
+---
+
+## PUT /api/v1/fleet-codes/:fleetCodeID
+
+Replaces all fields on an existing fleet code.
+
+### Path parameters
+
+<ParamField path="fleetCodeID" type="string" required>
+  The fleet code ID to update.
+</ParamField>
+
+---
+
+## PATCH /api/v1/fleet-codes/:fleetCodeID
+
+Partially updates a fleet code. Only the fields present in the request body are changed.
+
+### Path parameters
+
+<ParamField path="fleetCodeID" type="string" required>
+  The fleet code ID to patch.
+</ParamField>
+
+### Example request
+
+```bash
+curl -X PATCH https://api.trenova.app/api/v1/fleet-codes/fc_01j9z... \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"revenueGoal": 100000.00}'
+```
+
+---
+
+## Response fields
+
+<ResponseField name="id" type="string">
+  Unique fleet code identifier, prefixed `fc_`.
+</ResponseField>
+
+<ResponseField name="businessUnitId" type="string">
+  ID of the business unit that owns this fleet code.
+</ResponseField>
+
+<ResponseField name="organizationId" type="string">
+  ID of the organization that owns this fleet code.
+</ResponseField>
+
+<ResponseField name="code" type="string">
+  Short alphanumeric fleet code. Max 10 characters.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  `Active` or `Inactive`.
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Human-readable description of the fleet.
+</ResponseField>
+
+<ResponseField name="color" type="string">
+  Hex color code for UI display (e.g., `#3B82F6`).
+</ResponseField>
+
+<ResponseField name="managerId" type="string">
+  ID of the user who manages this fleet.
+</ResponseField>
+
+<ResponseField name="revenueGoal" type="number">
+  Revenue target for the fleet.
+</ResponseField>
+
+<ResponseField name="deadheadGoal" type="number">
+  Deadhead percentage target for the fleet.
+</ResponseField>
+
+<ResponseField name="mileageGoal" type="number">
+  Mileage target for the fleet.
+</ResponseField>
+
+<ResponseField name="manager" type="object">
+  Expanded manager user object. Only present when `includeManagerDetails=true`.
+</ResponseField>
+
+<ResponseField name="version" type="integer">
+  Optimistic concurrency version.
+</ResponseField>
+
+<ResponseField name="createdAt" type="integer">
+  Unix epoch timestamp of record creation.
+</ResponseField>
+
+<ResponseField name="updatedAt" type="integer">
+  Unix epoch timestamp of last update.
+</ResponseField>
+
+---
+
+## Status values
+
+| Value | Description |
+|-------|-------------|
+| `Active` | The fleet code is in use and available for assignment to equipment. |
+| `Inactive` | The fleet code is deactivated and hidden from selection lists. |

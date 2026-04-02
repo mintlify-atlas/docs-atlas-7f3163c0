@@ -1,0 +1,68 @@
+---
+title: "Introduction"
+description: "What is Trenova and who it's for"
+---
+
+Trenova is an AI-first Transportation Management System built for Over-The-Road carriers in the United States. It gives small and mid-sized fleets the same operational capabilities that previously required enterprise software costing $50,000 or more per year.
+
+<Note>
+  Trenova is currently in active development and not yet recommended for production use. APIs and features may change before the stable release.
+</Note>
+
+## The problem Trenova solves
+
+Traditional TMS platforms price out the carriers who need them most. Small and mid-sized fleets make up roughly 90% of the Over-The-Road trucking industry, yet enterprise TMS costs put modern tooling out of reach. Trenova is designed to close that gap — bringing real-time dispatch intelligence, automated workflows, and compliance tools to carriers of any size.
+
+## Key capabilities
+
+- **Shipment management** — Create and track shipments end-to-end with PRO number generation, BOL tracking, multi-stop moves, and status transitions from `New` through `Invoiced`.
+- **Fleet tracking** — Manage tractors, trailers, equipment types, and fleet codes in one place, with telematics integration via Samsara.
+- **Real-time dispatch** — Assign drivers and equipment to moves with live status updates pushed over WebSocket connections.
+- **AI automation** — Intelligent workflow automation powered by Temporal reduces repetitive manual tasks across operations.
+- **Compliance** — Full DOT hazardous materials reference data, segregation rule enforcement, and worker PTO tracking.
+- **Billing** — Customer management, accessorial charges, formula templates for rate calculation, GL accounts, and fiscal period reporting.
+
+## Architecture overview
+
+Trenova is a Go monorepo with a React frontend and a set of supporting infrastructure services:
+
+| Layer | Technology |
+|-------|-----------|
+| API backend | Go (Gin framework), Uber FX dependency injection, Bun ORM |
+| Frontend | React 19, TypeScript, Vite |
+| Primary database | PostgreSQL with PostGIS |
+| Cache | Redis 8 (JSON + streams) |
+| Full-text search | Meilisearch |
+| Object storage | MinIO |
+| Workflow engine | Temporal |
+| Reverse proxy | Caddy (automatic TLS) |
+| Connection pooling | PgBouncer |
+
+The backend follows a Hexagonal / Ports & Adapters architecture with Domain-Driven Design. The `services/tms` package is the main API service; `services/gtc` is a Change Data Capture pipeline that keeps Redis and Meilisearch in sync with PostgreSQL.
+
+## Licensing
+
+Trenova is published under the [Functional Source License (FSL)](https://fsl.software/), part of the [Fair Source](https://fair.io/) model. What this means in practice:
+
+- You can use and self-host Trenova at no cost, including in enterprise environments.
+- You **cannot** offer Trenova as a hosted SaaS product or build a competing service on top of its FSL-licensed code.
+- The license automatically converts to Apache 2.0 after two years.
+
+All source code, infrastructure configuration, and deployment tooling are publicly available on GitHub.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Quick start" icon="rocket" href="/quickstart">
+    Deploy Trenova with Docker and create your first shipment.
+  </Card>
+  <Card title="Architecture" icon="sitemap" href="/architecture">
+    Understand how Trenova's services and infrastructure fit together.
+  </Card>
+  <Card title="Shipment management" icon="truck" href="/features/shipments">
+    Learn how shipments, moves, stops, and commodities work.
+  </Card>
+  <Card title="API reference" icon="code" href="/api/overview">
+    Explore the REST API and integrate programmatically.
+  </Card>
+</CardGroup>

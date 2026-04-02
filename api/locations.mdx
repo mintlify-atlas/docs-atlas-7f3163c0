@@ -1,0 +1,263 @@
+---
+title: "Locations API"
+description: "Manage shipping and delivery locations"
+---
+
+Locations represent physical addresses used as pickup and delivery points on shipments. Each location is linked to a category, a US state, and optionally geocoded to WGS 84 coordinates stored via PostGIS for geographic proximity queries.
+
+## Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/locations/` | List locations |
+| `GET` | `/locations/{locationID}` | Get a location |
+| `POST` | `/locations/` | Create a location |
+| `PUT` | `/locations/{locationID}/` | Replace a location |
+| `PATCH` | `/locations/{locationID}/` | Partially update a location |
+| `POST` | `/locations/bulk-update-status/` | Bulk update location statuses |
+| `GET` | `/locations/select-options/` | List locations for select inputs |
+| `GET` | `/locations/select-options/{locationID}` | Get a single location option |
+
+---
+
+## List locations
+
+<ParamField query="query" type="string">
+  Full-text search across `status`, `code`, `name`, `description`, `addressLine1`, `addressLine2`, `city`, and `postalCode`.
+</ParamField>
+
+<ParamField query="limit" type="number" default="10">
+  Number of results per page. Between 1 and 100.
+</ParamField>
+
+<ParamField query="offset" type="number" default="0">
+  Zero-based page offset.
+</ParamField>
+
+```bash
+curl -X GET "https://api.example.com/locations/?query=warehouse&limit=20" \
+  -H "Authorization: Bearer {token}"
+```
+
+```json
+{
+  "count": 1,
+  "next": null,
+  "results": [
+    {
+      "id": "loc_01J9ABCDEF",
+      "businessUnitId": "bu_01J9XYZ",
+      "organizationId": "org_01J9XYZ",
+      "locationCategoryId": "lc_01J9XYZ",
+      "stateId": "state_01J9XYZ",
+      "status": "Active",
+      "code": "MEM01",
+      "name": "Memphis Distribution Center",
+      "description": "Main east-coast warehouse hub",
+      "addressLine1": "5500 Distribution Pkwy",
+      "addressLine2": null,
+      "city": "Memphis",
+      "postalCode": "38118",
+      "isGeocoded": true,
+      "longitude": -89.935,
+      "latitude": 35.061,
+      "placeId": "ChIJe...",
+      "version": 1,
+      "createdAt": 1700000000,
+      "updatedAt": 1700000000
+    }
+  ]
+}
+```
+
+---
+
+## Get a location
+
+<ParamField path="locationID" type="string" required>
+  The location ID prefixed with `loc_`.
+</ParamField>
+
+```bash
+curl -X GET "https://api.example.com/locations/loc_01J9ABCDEF" \
+  -H "Authorization: Bearer {token}"
+```
+
+---
+
+## Create a location
+
+### Request body
+
+<ParamField body="code" type="string" required>
+  Short unique location code. Between 1 and 10 characters.
+</ParamField>
+
+<ParamField body="name" type="string" required>
+  Display name for the location. Up to 255 characters.
+</ParamField>
+
+<ParamField body="status" type="string" required default="Active">
+  Record status. `Active` or `Inactive`.
+</ParamField>
+
+<ParamField body="locationCategoryId" type="string" required>
+  ID of the location category (e.g., warehouse, terminal, customer dock).
+</ParamField>
+
+<ParamField body="stateId" type="string" required>
+  ID of the US state.
+</ParamField>
+
+<ParamField body="addressLine1" type="string" required>
+  Primary street address. Up to 150 characters.
+</ParamField>
+
+<ParamField body="addressLine2" type="string">
+  Secondary address line. Up to 150 characters.
+</ParamField>
+
+<ParamField body="city" type="string" required>
+  City name. Up to 100 characters.
+</ParamField>
+
+<ParamField body="postalCode" type="string" required>
+  US postal code in `12345` or `12345-6789` format.
+</ParamField>
+
+<ParamField body="description" type="string">
+  Optional description for this location. Up to 255 characters.
+</ParamField>
+
+```bash
+curl -X POST "https://api.example.com/locations/" \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code": "MEM01",
+    "name": "Memphis Distribution Center",
+    "status": "Active",
+    "locationCategoryId": "lc_01J9XYZ",
+    "stateId": "state_01J9XYZ",
+    "addressLine1": "5500 Distribution Pkwy",
+    "city": "Memphis",
+    "postalCode": "38118",
+    "description": "Main east-coast warehouse hub"
+  }'
+```
+
+---
+
+## Bulk update status
+
+<Note>
+  This endpoint is not available to API key authentication. It requires a user session token.
+</Note>
+
+```bash
+curl -X POST "https://api.example.com/locations/bulk-update-status/" \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "locationIds": ["loc_01J9ABCDEF", "loc_01J9GHIJKL"],
+    "status": "Inactive"
+  }'
+```
+
+---
+
+## Response fields
+
+<ResponseField name="id" type="string">
+  Unique location ID with `loc_` prefix.
+</ResponseField>
+
+<ResponseField name="businessUnitId" type="string">
+  ID of the owning business unit.
+</ResponseField>
+
+<ResponseField name="organizationId" type="string">
+  ID of the owning organization.
+</ResponseField>
+
+<ResponseField name="locationCategoryId" type="string">
+  ID of the assigned location category.
+</ResponseField>
+
+<ResponseField name="stateId" type="string">
+  ID of the address state.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  `Active` or `Inactive`.
+</ResponseField>
+
+<ResponseField name="code" type="string">
+  Short unique location code.
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Display name.
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Optional description.
+</ResponseField>
+
+<ResponseField name="addressLine1" type="string">
+  Primary street address.
+</ResponseField>
+
+<ResponseField name="addressLine2" type="string">
+  Secondary address line.
+</ResponseField>
+
+<ResponseField name="city" type="string">
+  City.
+</ResponseField>
+
+<ResponseField name="postalCode" type="string">
+  US postal code.
+</ResponseField>
+
+<ResponseField name="isGeocoded" type="boolean">
+  Whether the address has been resolved to coordinates.
+</ResponseField>
+
+<ResponseField name="longitude" type="number">
+  WGS 84 longitude. Populated after geocoding.
+</ResponseField>
+
+<ResponseField name="latitude" type="number">
+  WGS 84 latitude. Populated after geocoding.
+</ResponseField>
+
+<ResponseField name="placeId" type="string">
+  Place identifier returned by the geocoding provider.
+</ResponseField>
+
+<ResponseField name="version" type="number">
+  Optimistic concurrency version number.
+</ResponseField>
+
+<ResponseField name="createdAt" type="number">
+  Creation timestamp in Unix seconds.
+</ResponseField>
+
+<ResponseField name="updatedAt" type="number">
+  Last update timestamp in Unix seconds.
+</ResponseField>
+
+<ResponseField name="state" type="object">
+  Linked US state object.
+</ResponseField>
+
+<ResponseField name="locationCategory" type="object">
+  Linked location category object.
+</ResponseField>
+
+---
+
+## Geographic coordinates
+
+Trenova stores geocoded coordinates using PostGIS `geography` columns. When `isGeocoded` is `true`, the `longitude` and `latitude` fields contain WGS 84 decimal degree values. You can use `geoFilters` on the list endpoint to filter locations by proximity to a point using these stored coordinates.

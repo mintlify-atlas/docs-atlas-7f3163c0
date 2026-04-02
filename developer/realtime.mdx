@@ -1,0 +1,96 @@
+---
+title: "Real-Time Updates"
+description: "Subscribe to live events with Trenova's Ably-powered real-time system"
+---
+
+Trenova uses [Ably](https://ably.com) for real-time pub/sub messaging. This powers live shipment updates, in-app notifications, and table change alerts across the UI.
+
+## How it works
+
+The Trenova backend generates a signed Ably token request. Your client uses this token to authenticate directly with Ably and subscribe to channels. The backend never exposes your Ably API keys — only scoped token requests.
+
+```
+Client → GET /api/v1/realtime/token-request/ → Trenova API
+Trenova API → Signed token request → Client
+Client → Ably (with token) → Subscribe to channels → Receive events
+```
+
+## Getting a token request
+
+```
+GET /api/v1/realtime/token-request/
+```
+
+Requires authentication (session cookie or API key). Returns a signed Ably token request object your client passes to the Ably SDK.
+
+**Example:**
+
+```bash
+curl https://your-domain/api/v1/realtime/token-request/ \
+  -H "Authorization: Bearer trv_your_api_key"
+```
+
+**Response:**
+
+```json
+{
+  "keyName": "...",
+  "ttl": 3600000,
+  "capability": "{\"*\":[\"subscribe\"]}",
+  "clientId": "usr_01J...",
+  "timestamp": 1714000000000,
+  "nonce": "...",
+  "mac": "..."
+}
+```
+
+## Connecting with the Ably SDK
+
+Install the Ably client library:
+
+```bash
+pnpm add ably
+```
+
+Connect using the token request from Trenova:
+
+```typescript
+import Ably from "ably";
+
+// Fetch a token request from your Trenova API
+async function getTokenRequest() {
+  const res = await fetch("/api/v1/realtime/token-request/", {
+    credentials: "include",
+  });
+  return res.json();
+}
+
+// Create an Ably client with token auth
+const client = new Ably.Realtime({
+  authCallback: async (_data, callback) => {
+    const tokenRequest = await getTokenRequest();
+    callback(null, tokenRequest);
+  },
+});
+
+// Subscribe to a channel
+const channel = client.channels.get("shipments");
+channel.subscribe((message) => {
+  console.log("Shipment update:", message.data);
+});
+```
+
+## Use cases
+
+- **Shipment status changes** — receive live updates when a shipment moves from `New` to `InProgress` or `Completed`
+- **Assignment changes** — notify dispatchers when a driver is assigned or unassigned
+- **In-app notifications** — deliver alerts to users without polling
+- **Table change alerts** — trigger workflows when specific data changes (configured in [Admin → Audit Logs](/admin/audit-logs))
+
+## Table change alerts
+
+Administrators can configure table change alerts to fire real-time events when specific records change. See [Audit Logs](/admin/audit-logs) for configuration details.
+
+<Note>
+  Real-time features require your Trenova instance to be configured with an Ably API key. Contact your administrator if real-time updates are not working.
+</Note>

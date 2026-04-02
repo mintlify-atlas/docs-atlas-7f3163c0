@@ -1,80 +1,127 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: "Quick start"
+description: "Deploy Trenova and create your first shipment"
 ---
 
-## Get started in three steps
+This guide walks you through deploying Trenova locally using Docker and getting to a running system in a single script. The setup takes around five to ten minutes depending on your internet connection and hardware.
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+Before you begin, confirm your environment meets the minimum requirements.
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+**Hardware:**
 
-### Step 2: Deploy your changes
+| Resource | Minimum | Recommended |
+|----------|---------|-------------|
+| CPU | 4 cores | 8 cores |
+| RAM | 8 GB | 16 GB |
+| Storage | 50 GB SSD | 100 GB SSD |
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+**Software:**
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+| Tool | Version |
+|------|---------|
+| Docker Engine | 24.0+ |
+| Docker Compose | v2 (plugin or standalone) |
+| OpenSSL | Any |
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+Trenova runs on Linux (Ubuntu 22.04+, Debian 12+, RHEL 8+) and Windows Server 2019+ with WSL2.
 
-### Step 3: Go live
+---
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+## Deploy Trenova
 
-## Next steps
+<Steps>
+  <Step title="Clone the repository">
+    Clone the Trenova repository and navigate to the `deploy` directory:
 
-Now that you have your docs running, explore these key features:
+    ```bash
+    git clone https://github.com/emoss08/trenova-2.git
+    cd trenova-2/deploy
+    ```
+  </Step>
 
-<CardGroup cols={2}>
+  <Step title="Run the setup script">
+    Execute the setup script. It handles everything from credential generation to database seeding:
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
+    ```bash
+    ./setup.sh
+    ```
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
+    The script will:
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
+    1. Check that Docker, Docker Compose, and OpenSSL are installed.
+    2. Prompt you for a domain name (press **Enter** to use `localhost`).
+    3. Generate cryptographically secure credentials for all services.
+    4. Build and start all Docker containers.
+    5. Run database migrations against PostgreSQL.
+    6. Seed the database with initial reference data.
 
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
+    <Tip>
+      If you use a custom domain instead of `localhost`, add both the main domain and the `storage.` subdomain to your DNS or hosts file before running the script — for example, `127.0.0.1 trenova.local` and `127.0.0.1 storage.trenova.local`.
+    </Tip>
+  </Step>
 
-</CardGroup>
+  <Step title="Access the application">
+    Once the script finishes, open your browser and go to `http://localhost`. Log in with the default admin credentials:
+
+    | Field | Value |
+    |-------|-------|
+    | Email | `admin@trenova.app` |
+    | Password | `admin123!` |
+
+    <Note>
+      Change the default admin password immediately after your first login. The default credentials are well-known and should never be used in any environment accessible over a network.
+    </Note>
+
+    The following service URLs are available on a localhost deployment:
+
+    | Service | URL |
+    |---------|-----|
+    | Application | `http://localhost` |
+    | API health | `http://localhost/api/v1/health` |
+    | Temporal UI | `http://localhost/temporal-ui` |
+    | MinIO console | `http://localhost/minio` |
+  </Step>
+
+  <Step title="Change your password">
+    In the application, navigate to your user profile and update the password before doing anything else. This replaces `admin123!` with a credential only you know.
+  </Step>
+
+  <Step title="Explore the application">
+    After changing your password, you can start exploring the platform:
+
+    - **Shipments** — Create a new shipment by navigating to Dispatch → Shipments. You will need at least one customer and one service type configured first.
+    - **Fleet** — Add tractors, trailers, and equipment types under the Fleet section.
+    - **Workers** — Onboard drivers and assign them to moves under the Workers section.
+
+    <Tip>
+      The API health endpoint at `http://localhost/api/v1/health` confirms the backend is running correctly. Check it if any service appears unavailable.
+    </Tip>
+  </Step>
+</Steps>
+
+---
+
+## Production deployment
+
+For production, use pre-built images from GitHub Container Registry instead of building locally:
+
+```bash
+cd deploy
+
+# Copy and configure the environment file
+cp .env.example .env
+# Edit .env with your domain and review the generated secrets
+
+# Set the version and pull images
+export TRENOVA_VERSION=latest
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
+Production images are published at `ghcr.io/emoss08/trenova-2/tms` and tagged with semantic versions (e.g., `1.0.0`) as well as `latest`.
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  For full production setup including TLS configuration, reverse proxy settings, backup procedures, and update management, see the [Deployment overview](/deployment/overview).
 </Note>

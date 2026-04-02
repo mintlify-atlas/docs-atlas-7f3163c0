@@ -1,0 +1,88 @@
+---
+title: "API Keys"
+description: "Create and manage API keys for programmatic access to Trenova"
+---
+
+API keys let you authenticate with the Trenova API from scripts, integrations, and automated workflows — without managing session cookies.
+
+## Creating an API key
+
+<Steps>
+  <Step title="Open API Keys">
+    In the Trenova UI, navigate to your profile menu and select **API Keys**, or go to **Admin → API Keys**.
+  </Step>
+  <Step title="Create a new key">
+    Click **Create API Key**. Give it a descriptive name (e.g., `shipment-importer` or `reporting-script`) and an optional description.
+  </Step>
+  <Step title="Set an expiry (optional)">
+    Choose an expiration date for the key. Keys without an expiry remain active until explicitly revoked.
+  </Step>
+  <Step title="Copy the key">
+    After creation, the full key value is shown **once**. Copy it immediately and store it securely — you cannot retrieve it again.
+  </Step>
+</Steps>
+
+<Warning>
+  The secret key is only displayed once at creation. If you lose it, you must revoke the key and create a new one.
+</Warning>
+
+## Using an API key
+
+Pass your key as a Bearer token in the `Authorization` header on every request:
+
+```bash
+curl https://your-domain/api/v1/shipments \
+  -H "Authorization: Bearer trv_your_api_key_here"
+```
+
+Key IDs in the API response are prefixed `ak_`. The secret value you use for authentication starts with `trv_`.
+
+## Key fields
+
+| Field | Description |
+|-------|-------------|
+| `id` | Unique key identifier (`ak_...`) |
+| `name` | Human-readable label |
+| `description` | Optional notes |
+| `keyPrefix` | Short prefix of the key (safe to display) |
+| `status` | `active` or `revoked` |
+| `expiresAt` | Unix timestamp when key expires (null = no expiry) |
+| `lastUsedAt` | Timestamp of most recent use |
+| `lastUsedIp` | IP address of last request |
+| `createdAt` | Key creation timestamp |
+
+## API endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/v1/api-keys/` | List all API keys |
+| `POST` | `/api/v1/api-keys/` | Create a new API key |
+| `GET` | `/api/v1/api-keys/:apiKeyID/` | Get a specific key |
+| `GET` | `/api/v1/api-keys/allowed-resources` | List resources available to key |
+
+## Revoking a key
+
+To revoke a key, open it in the API Keys list and click **Revoke**. Revoked keys immediately stop working. This action cannot be undone.
+
+A revoked key's `status` changes to `revoked` and `revokedAt` is set.
+
+## Key rotation
+
+When rotating a key:
+
+1. Create a new API key
+2. Update your integration to use the new key
+3. Verify the new key works
+4. Revoke the old key
+
+<Tip>
+  Use separate keys per integration so you can rotate or revoke individual keys without affecting others.
+</Tip>
+
+## Security best practices
+
+- Store keys in environment variables or a secrets manager — never hard-code them
+- Use the minimum permissions necessary for each key
+- Set expiration dates on keys used for temporary access
+- Rotate keys regularly
+- Revoke keys immediately if compromised

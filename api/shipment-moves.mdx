@@ -1,0 +1,371 @@
+---
+title: "Shipment Moves API"
+description: "Manage the individual moves and stops within a shipment"
+---
+
+A shipment move represents a single leg of a shipment — a sequence of stops driven by one tractor and driver combination. Every shipment contains one or more moves, and each move contains an ordered list of stops. The Shipment Moves API lets you update move statuses individually or in bulk, and split an existing move into two separate legs when circumstances require mid-route changes.
+
+## Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/v1/shipment-moves/:moveID/update-status/` | Update a single move's status |
+| `POST` | `/api/v1/shipment-moves/bulk-update-status/` | Update the status of multiple moves at once |
+| `POST` | `/api/v1/shipment-moves/:moveID/split/` | Split a move into two moves at a new intermediate location |
+
+<Note>
+Moves are created and deleted as part of the [Shipments API](/api/shipments). Use the Shipment Moves API to update status and perform operational actions on existing moves.
+</Note>
+
+---
+
+## POST /api/v1/shipment-moves/:moveID/update-status/
+
+Updates the status of a single shipment move.
+
+### Path parameters
+
+<ParamField path="moveID" type="string" required>
+  The move ID to update (prefixed `sm_`).
+</ParamField>
+
+### Request body
+
+<ParamField body="status" type="string" required>
+  The new status to apply. Must be a valid [move status value](#move-status-values).
+</ParamField>
+
+### Example request
+
+```bash
+curl -X POST https://api.trenova.app/api/v1/shipment-moves/sm_01j9z.../update-status/ \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "InTransit"}'
+```
+
+### Example response
+
+```json
+{
+  "id": "sm_01j9z...",
+  "shipmentId": "shp_01j9z...",
+  "status": "InTransit",
+  "loaded": true,
+  "sequence": 0,
+  "distance": 347.2,
+  "version": 2,
+  "createdAt": 1712000000,
+  "updatedAt": 1712050000
+}
+```
+
+---
+
+## POST /api/v1/shipment-moves/bulk-update-status/
+
+Updates the status of multiple moves in a single request.
+
+### Request body
+
+<ParamField body="moveIds" type="array" required>
+  Array of move IDs (prefixed `sm_`) to update.
+</ParamField>
+
+<ParamField body="status" type="string" required>
+  The new status to apply to all specified moves. Must be a valid [move status value](#move-status-values).
+</ParamField>
+
+### Example request
+
+```bash
+curl -X POST https://api.trenova.app/api/v1/shipment-moves/bulk-update-status/ \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "moveIds": ["sm_01j9z...", "sm_02j9z..."],
+    "status": "Completed"
+  }'
+```
+
+### Example response
+
+```json
+[
+  {
+    "id": "sm_01j9z...",
+    "shipmentId": "shp_01j9z...",
+    "status": "Completed",
+    "loaded": true,
+    "sequence": 0,
+    "version": 3,
+    "createdAt": 1712000000,
+    "updatedAt": 1712090000
+  },
+  {
+    "id": "sm_02j9z...",
+    "shipmentId": "shp_02j9z...",
+    "status": "Completed",
+    "loaded": true,
+    "sequence": 0,
+    "version": 2,
+    "createdAt": 1712001000,
+    "updatedAt": 1712090000
+  }
+]
+```
+
+---
+
+## POST /api/v1/shipment-moves/:moveID/split/
+
+Splits an existing move into two moves by inserting an intermediate delivery location. The original move gains a new `SplitDelivery` stop at the specified location; a new move is created from that point with a `SplitPickup` stop and continues to the original delivery location.
+
+### Path parameters
+
+<ParamField path="moveID" type="string" required>
+  The move ID to split (prefixed `sm_`).
+</ParamField>
+
+### Request body
+
+<ParamField body="newDeliveryLocationId" type="string" required>
+  ID of the location where the split delivery will occur — the intermediate stop inserted into the original move.
+</ParamField>
+
+<ParamField body="splitPickupTimes" type="object" required>
+  Scheduled time window for the split pickup stop on the new move.
+
+  <Expandable title="properties">
+    <ParamField body="scheduledWindowStart" type="integer" required>
+      Unix epoch timestamp for the start of the pickup window.
+    </ParamField>
+
+    <ParamField body="scheduledWindowEnd" type="integer">
+      Unix epoch timestamp for the end of the pickup window.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="newDeliveryTimes" type="object" required>
+  Scheduled time window for the delivery stop on the new move.
+
+  <Expandable title="properties">
+    <ParamField body="scheduledWindowStart" type="integer" required>
+      Unix epoch timestamp for the start of the delivery window.
+    </ParamField>
+
+    <ParamField body="scheduledWindowEnd" type="integer">
+      Unix epoch timestamp for the end of the delivery window.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="pieces" type="integer">
+  Number of pieces to assign to the split portion.
+</ParamField>
+
+<ParamField body="weight" type="integer">
+  Weight in pounds to assign to the split portion.
+</ParamField>
+
+### Example request
+
+```bash
+curl -X POST https://api.trenova.app/api/v1/shipment-moves/sm_01j9z.../split/ \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "newDeliveryLocationId": "loc_03j9z...",
+    "splitPickupTimes": {
+      "scheduledWindowStart": 1712120000,
+      "scheduledWindowEnd": 1712123600
+    },
+    "newDeliveryTimes": {
+      "scheduledWindowStart": 1712200000
+    },
+    "pieces": 6,
+    "weight": 2400
+  }'
+```
+
+### Example response
+
+```json
+{
+  "originalMove": {
+    "id": "sm_01j9z...",
+    "shipmentId": "shp_01j9z...",
+    "status": "New",
+    "loaded": true,
+    "sequence": 0,
+    "version": 2,
+    "createdAt": 1712000000,
+    "updatedAt": 1712100000
+  },
+  "newMove": {
+    "id": "sm_03j9z...",
+    "shipmentId": "shp_01j9z...",
+    "status": "New",
+    "loaded": true,
+    "sequence": 1,
+    "version": 1,
+    "createdAt": 1712100000,
+    "updatedAt": 1712100000
+  }
+}
+```
+
+---
+
+## Move response fields
+
+<ResponseField name="id" type="string">
+  Unique move identifier, prefixed `sm_`.
+</ResponseField>
+
+<ResponseField name="shipmentId" type="string">
+  ID of the parent shipment.
+</ResponseField>
+
+<ResponseField name="businessUnitId" type="string">
+  ID of the business unit that owns this move.
+</ResponseField>
+
+<ResponseField name="organizationId" type="string">
+  ID of the organization that owns this move.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current move status. See [move status values](#move-status-values).
+</ResponseField>
+
+<ResponseField name="loaded" type="boolean">
+  Whether this is a loaded (revenue) move. `false` indicates a deadhead (empty) move.
+</ResponseField>
+
+<ResponseField name="sequence" type="integer">
+  Zero-based position of this move within the shipment's move sequence.
+</ResponseField>
+
+<ResponseField name="distance" type="number">
+  Calculated distance in miles for this move. Null until computed.
+</ResponseField>
+
+<ResponseField name="stops" type="array">
+  Ordered stops for this move. Only present when the move is expanded.
+
+  <Expandable title="stop fields">
+    <ResponseField name="id" type="string">
+      Unique stop identifier, prefixed `stp_`.
+    </ResponseField>
+
+    <ResponseField name="shipmentMoveId" type="string">
+      ID of the parent move.
+    </ResponseField>
+
+    <ResponseField name="locationId" type="string">
+      ID of the stop location.
+    </ResponseField>
+
+    <ResponseField name="status" type="string">
+      Stop status: `New`, `InTransit`, `Completed`, or `Canceled`.
+    </ResponseField>
+
+    <ResponseField name="type" type="string">
+      Stop type: `Pickup`, `Delivery`, `SplitPickup`, or `SplitDelivery`.
+    </ResponseField>
+
+    <ResponseField name="scheduleType" type="string">
+      `Open` or `Appointment`.
+    </ResponseField>
+
+    <ResponseField name="sequence" type="integer">
+      Zero-based position of this stop within the move.
+    </ResponseField>
+
+    <ResponseField name="scheduledWindowStart" type="integer">
+      Scheduled arrival window start as a Unix epoch timestamp.
+    </ResponseField>
+
+    <ResponseField name="scheduledWindowEnd" type="integer">
+      Scheduled arrival window end as a Unix epoch timestamp. Null for open schedules.
+    </ResponseField>
+
+    <ResponseField name="actualArrival" type="integer">
+      Actual arrival time as a Unix epoch timestamp. Null until updated.
+    </ResponseField>
+
+    <ResponseField name="actualDeparture" type="integer">
+      Actual departure time as a Unix epoch timestamp. Null until updated.
+    </ResponseField>
+
+    <ResponseField name="pieces" type="integer">
+      Pieces handled at this stop.
+    </ResponseField>
+
+    <ResponseField name="weight" type="integer">
+      Weight handled at this stop in pounds.
+    </ResponseField>
+
+    <ResponseField name="addressLine" type="string">
+      Denormalized address line captured at the time of the stop.
+    </ResponseField>
+
+    <ResponseField name="countLateOverride" type="boolean">
+      When `true`, forces the system to count this stop as late regardless of timestamps.
+    </ResponseField>
+
+    <ResponseField name="countDetentionOverride" type="boolean">
+      When `true`, forces detention to be counted at this stop.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="assignment" type="object">
+  The assignment for this move (driver, tractor, trailer). See the [Assignments API](/api/assignments).
+</ResponseField>
+
+<ResponseField name="version" type="integer">
+  Optimistic concurrency version.
+</ResponseField>
+
+<ResponseField name="createdAt" type="integer">
+  Unix epoch timestamp of record creation.
+</ResponseField>
+
+<ResponseField name="updatedAt" type="integer">
+  Unix epoch timestamp of last update.
+</ResponseField>
+
+---
+
+## Move status values
+
+| Value | Description |
+|-------|-------------|
+| `New` | Move created but not yet assigned. |
+| `Assigned` | A driver, tractor, and trailer have been assigned to this move. |
+| `InTransit` | The driver has started this move and is en route. |
+| `Completed` | All stops on this move are complete. |
+| `Canceled` | This move was canceled. |
+
+---
+
+## Stop type values
+
+| Value | Description |
+|-------|-------------|
+| `Pickup` | Standard pickup stop. |
+| `Delivery` | Standard delivery stop. |
+| `SplitPickup` | Pickup stop created when a move is split. |
+| `SplitDelivery` | Delivery stop created when a move is split. |
+
+---
+
+## Stop schedule type values
+
+| Value | Description |
+|-------|-------------|
+| `Open` | No specific appointment — driver arrives within the window. |
+| `Appointment` | An explicit appointment time has been set with the facility. |

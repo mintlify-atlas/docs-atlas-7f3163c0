@@ -1,0 +1,485 @@
+---
+title: "Shipments API"
+description: "Create, list, update, and manage shipments"
+---
+
+Shipments are the core operational record in Trenova TMS. Each shipment represents a freight movement from origin to destination, carrying billing details, commodity information, and a set of ordered moves that describe how the freight travels. You can create, read, update, cancel, and duplicate shipments through this API.
+
+## Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/v1/shipments/` | List shipments |
+| `GET` | `/api/v1/shipments/:shipmentID` | Get a single shipment |
+| `POST` | `/api/v1/shipments/` | Create a shipment |
+| `PUT` | `/api/v1/shipments/:shipmentID/` | Update a shipment |
+| `POST` | `/api/v1/shipments/:shipmentID/cancel/` | Cancel a shipment |
+| `POST` | `/api/v1/shipments/:shipmentID/uncancel/` | Uncancel a shipment |
+| `POST` | `/api/v1/shipments/duplicate/` | Duplicate one or more shipments |
+| `POST` | `/api/v1/shipments/calculate-totals/` | Calculate freight and other charges |
+| `POST` | `/api/v1/shipments/:shipmentID/transfer-ownership/` | Transfer shipment ownership |
+| `GET` | `/api/v1/shipments/delayed/` | List delayed shipments |
+| `POST` | `/api/v1/shipments/delay/` | Mark eligible shipments as delayed |
+
+---
+
+## GET /api/v1/shipments/
+
+Returns a paginated list of shipments for the authenticated organization.
+
+### Query parameters
+
+<ParamField query="query" type="string">
+  Full-text search across `proNumber` and `bol`.
+</ParamField>
+
+<ParamField query="status" type="string">
+  Filter by shipment status. Must be one of the [status values](#status-values) below.
+</ParamField>
+
+<ParamField query="expandShipmentDetails" type="boolean">
+  When `true`, expands related objects including moves, stops, customer, and equipment details.
+</ParamField>
+
+<ParamField query="limit" type="integer">
+  Number of records per page. Min `1`, max `100`. Defaults to `10`.
+</ParamField>
+
+<ParamField query="offset" type="integer">
+  Zero-based page offset. Defaults to `0`.
+</ParamField>
+
+### Response
+
+```json
+{
+  "count": 1,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": "shp_01j9z...",
+      "proNumber": "PRO-000123",
+      "bol": "BOL-456789",
+      "status": "New",
+      "customerId": "cus_01j9z...",
+      "serviceTypeId": "st_01j9z...",
+      "shipmentTypeId": "sht_01j9z...",
+      "freightChargeAmount": "1250.0000",
+      "otherChargeAmount": "75.0000",
+      "totalChargeAmount": "1325.0000",
+      "pieces": 12,
+      "weight": 4800,
+      "createdAt": 1712000000,
+      "updatedAt": 1712000000,
+      "version": 1
+    }
+  ]
+}
+```
+
+---
+
+## GET /api/v1/shipments/:shipmentID
+
+Returns a single shipment by ID.
+
+### Path parameters
+
+<ParamField path="shipmentID" type="string" required>
+  The shipment ID (prefixed `shp_`).
+</ParamField>
+
+### Query parameters
+
+<ParamField query="expandShipmentDetails" type="boolean">
+  When `true`, expands related moves, stops, customer, and equipment details.
+</ParamField>
+
+---
+
+## POST /api/v1/shipments/
+
+Creates a new shipment. Returns `201 Created` with the created shipment object.
+
+### Request body
+
+<ParamField body="serviceTypeId" type="string" required>
+  ID of the service type that classifies this shipment (e.g., LTL, FTL).
+</ParamField>
+
+<ParamField body="customerId" type="string" required>
+  ID of the customer who owns this shipment.
+</ParamField>
+
+<ParamField body="formulaTemplateId" type="string" required>
+  ID of the formula template used to calculate charges.
+</ParamField>
+
+<ParamField body="status" type="string" required>
+  Initial status. Must be a valid [status value](#status-values). Defaults to `New`.
+</ParamField>
+
+<ParamField body="shipmentTypeId" type="string">
+  ID of the shipment type.
+</ParamField>
+
+<ParamField body="tractorTypeId" type="string">
+  ID of the required tractor equipment type.
+</ParamField>
+
+<ParamField body="trailerTypeId" type="string">
+  ID of the required trailer equipment type.
+</ParamField>
+
+<ParamField body="ownerId" type="string">
+  ID of the user who owns this shipment.
+</ParamField>
+
+<ParamField body="enteredById" type="string">
+  ID of the user who entered this shipment into the system.
+</ParamField>
+
+<ParamField body="bol" type="string">
+  Bill of lading number.
+</ParamField>
+
+<ParamField body="freightChargeAmount" type="string">
+  Freight charge as a decimal string (e.g., `"1250.00"`).
+</ParamField>
+
+<ParamField body="otherChargeAmount" type="string">
+  Additional charges as a decimal string.
+</ParamField>
+
+<ParamField body="totalChargeAmount" type="string">
+  Total charge as a decimal string. Usually computed by the server via `calculate-totals`.
+</ParamField>
+
+<ParamField body="pieces" type="integer">
+  Number of pieces in the shipment.
+</ParamField>
+
+<ParamField body="weight" type="integer">
+  Total weight in pounds.
+</ParamField>
+
+<ParamField body="temperatureMin" type="integer">
+  Minimum required temperature in degrees Fahrenheit (temperature-controlled loads).
+</ParamField>
+
+<ParamField body="temperatureMax" type="integer">
+  Maximum required temperature in degrees Fahrenheit (temperature-controlled loads).
+</ParamField>
+
+<ParamField body="actualShipDate" type="integer">
+  Actual ship date as a Unix epoch timestamp.
+</ParamField>
+
+<ParamField body="actualDeliveryDate" type="integer">
+  Actual delivery date as a Unix epoch timestamp.
+</ParamField>
+
+<ParamField body="moves" type="array">
+  Array of shipment move objects. At minimum, one move with at least one pickup and one delivery stop is required.
+
+  <Expandable title="move properties">
+    <ParamField body="loaded" type="boolean">
+      Whether the move is a loaded (revenue) move. Defaults to `true`.
+    </ParamField>
+
+    <ParamField body="sequence" type="integer">
+      Zero-based sequence order of this move within the shipment.
+    </ParamField>
+
+    <ParamField body="stops" type="array">
+      Ordered stops for this move.
+
+      <Expandable title="stop properties">
+        <ParamField body="locationId" type="string" required>
+          ID of the location for this stop.
+        </ParamField>
+
+        <ParamField body="type" type="string" required>
+          Stop type: `Pickup`, `Delivery`, `SplitPickup`, or `SplitDelivery`.
+        </ParamField>
+
+        <ParamField body="scheduleType" type="string">
+          `Open` (no appointment) or `Appointment`. Defaults to `Open`.
+        </ParamField>
+
+        <ParamField body="scheduledWindowStart" type="integer" required>
+          Scheduled arrival window start as a Unix epoch timestamp.
+        </ParamField>
+
+        <ParamField body="scheduledWindowEnd" type="integer">
+          Scheduled arrival window end as a Unix epoch timestamp.
+        </ParamField>
+
+        <ParamField body="pieces" type="integer">
+          Pieces picked up or delivered at this stop.
+        </ParamField>
+
+        <ParamField body="weight" type="integer">
+          Weight picked up or delivered at this stop.
+        </ParamField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Example request
+
+```bash
+curl -X POST https://api.trenova.app/api/v1/shipments/ \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "serviceTypeId": "st_01j9z...",
+    "customerId": "cus_01j9z...",
+    "formulaTemplateId": "ft_01j9z...",
+    "status": "New",
+    "bol": "BOL-456789",
+    "pieces": 12,
+    "weight": 4800,
+    "freightChargeAmount": "1250.00",
+    "otherChargeAmount": "75.00",
+    "moves": [
+      {
+        "loaded": true,
+        "sequence": 0,
+        "stops": [
+          {
+            "locationId": "loc_01j9z...",
+            "type": "Pickup",
+            "scheduleType": "Appointment",
+            "scheduledWindowStart": 1712080000,
+            "scheduledWindowEnd": 1712083600,
+            "pieces": 12,
+            "weight": 4800
+          },
+          {
+            "locationId": "loc_02j9z...",
+            "type": "Delivery",
+            "scheduleType": "Open",
+            "scheduledWindowStart": 1712166400
+          }
+        ]
+      }
+    ]
+  }'
+```
+
+### Example response
+
+```json
+{
+  "id": "shp_01j9z...",
+  "proNumber": "PRO-000123",
+  "bol": "BOL-456789",
+  "status": "New",
+  "customerId": "cus_01j9z...",
+  "serviceTypeId": "st_01j9z...",
+  "formulaTemplateId": "ft_01j9z...",
+  "freightChargeAmount": "1250.0000",
+  "otherChargeAmount": "75.0000",
+  "totalChargeAmount": "1325.0000",
+  "pieces": 12,
+  "weight": 4800,
+  "temperatureMin": null,
+  "temperatureMax": null,
+  "ratingUnit": 1,
+  "version": 1,
+  "createdAt": 1712000000,
+  "updatedAt": 1712000000
+}
+```
+
+---
+
+## PUT /api/v1/shipments/:shipmentID/
+
+Replaces all updatable fields on an existing shipment. Supply the full shipment object in the request body — the server ignores the path ID in favor of the authenticated context and sets it from the URL parameter.
+
+### Path parameters
+
+<ParamField path="shipmentID" type="string" required>
+  The shipment ID to update.
+</ParamField>
+
+---
+
+## POST /api/v1/shipments/:shipmentID/cancel/
+
+Cancels a shipment and transitions its status to `Canceled`. Optionally accepts a reason.
+
+### Path parameters
+
+<ParamField path="shipmentID" type="string" required>
+  The shipment to cancel.
+</ParamField>
+
+### Request body
+
+<ParamField body="cancelReason" type="string">
+  Human-readable reason for cancellation.
+</ParamField>
+
+---
+
+## Response fields
+
+<ResponseField name="id" type="string">
+  Unique shipment identifier, prefixed `shp_`.
+</ResponseField>
+
+<ResponseField name="proNumber" type="string">
+  System-assigned pro (progressive) number for the shipment.
+</ResponseField>
+
+<ResponseField name="bol" type="string">
+  Bill of lading number provided by the shipper.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current shipment status. See [status values](#status-values).
+</ResponseField>
+
+<ResponseField name="businessUnitId" type="string">
+  ID of the business unit that owns this shipment.
+</ResponseField>
+
+<ResponseField name="organizationId" type="string">
+  ID of the organization that owns this shipment.
+</ResponseField>
+
+<ResponseField name="customerId" type="string">
+  ID of the associated customer.
+</ResponseField>
+
+<ResponseField name="serviceTypeId" type="string">
+  ID of the service type.
+</ResponseField>
+
+<ResponseField name="shipmentTypeId" type="string">
+  ID of the shipment type, if set.
+</ResponseField>
+
+<ResponseField name="tractorTypeId" type="string">
+  ID of the required tractor equipment type, if set.
+</ResponseField>
+
+<ResponseField name="trailerTypeId" type="string">
+  ID of the required trailer equipment type, if set.
+</ResponseField>
+
+<ResponseField name="ownerId" type="string">
+  ID of the user assigned as owner.
+</ResponseField>
+
+<ResponseField name="enteredById" type="string">
+  ID of the user who created the shipment record.
+</ResponseField>
+
+<ResponseField name="canceledById" type="string">
+  ID of the user who canceled the shipment.
+</ResponseField>
+
+<ResponseField name="formulaTemplateId" type="string">
+  ID of the formula template used for charge calculation.
+</ResponseField>
+
+<ResponseField name="freightChargeAmount" type="string">
+  Freight charge as a decimal string.
+</ResponseField>
+
+<ResponseField name="otherChargeAmount" type="string">
+  Other/accessorial charges as a decimal string.
+</ResponseField>
+
+<ResponseField name="totalChargeAmount" type="string">
+  Total charge (freight + other) as a decimal string.
+</ResponseField>
+
+<ResponseField name="pieces" type="integer">
+  Number of pieces in the shipment.
+</ResponseField>
+
+<ResponseField name="weight" type="integer">
+  Total shipment weight in pounds.
+</ResponseField>
+
+<ResponseField name="temperatureMin" type="integer">
+  Minimum temperature requirement in degrees Fahrenheit. Null if not temperature-controlled.
+</ResponseField>
+
+<ResponseField name="temperatureMax" type="integer">
+  Maximum temperature requirement in degrees Fahrenheit. Null if not temperature-controlled.
+</ResponseField>
+
+<ResponseField name="actualShipDate" type="integer">
+  Actual ship date as a Unix epoch timestamp.
+</ResponseField>
+
+<ResponseField name="actualDeliveryDate" type="integer">
+  Actual delivery date as a Unix epoch timestamp.
+</ResponseField>
+
+<ResponseField name="canceledAt" type="integer">
+  Unix epoch timestamp of when the shipment was canceled.
+</ResponseField>
+
+<ResponseField name="ratingUnit" type="integer">
+  Internal rating unit value used in charge calculations. Defaults to `1`.
+</ResponseField>
+
+<ResponseField name="cancelReason" type="string">
+  Cancellation reason, if provided.
+</ResponseField>
+
+<ResponseField name="version" type="integer">
+  Optimistic concurrency version. Increment this field when performing updates to prevent write conflicts.
+</ResponseField>
+
+<ResponseField name="createdAt" type="integer">
+  Unix epoch timestamp of record creation.
+</ResponseField>
+
+<ResponseField name="updatedAt" type="integer">
+  Unix epoch timestamp of last update.
+</ResponseField>
+
+<ResponseField name="moves" type="array">
+  Array of shipment move objects. Only present when `expandShipmentDetails=true`.
+</ResponseField>
+
+---
+
+## Status values
+
+| Value | Description |
+|-------|-------------|
+| `New` | Shipment created but not yet assigned to any driver or tractor. |
+| `PartiallyAssigned` | Some moves have been assigned, but not all. |
+| `Assigned` | All moves have been assigned to drivers and equipment. |
+| `InTransit` | The shipment is actively being transported. |
+| `Delayed` | The shipment has passed its scheduled delivery window. |
+| `PartiallyCompleted` | Some moves are complete, but others are still in progress. |
+| `ReadyToInvoice` | Delivery is complete and the shipment is ready for billing. |
+| `Completed` | The shipment has been fully delivered and closed. |
+| `Invoiced` | An invoice has been generated for this shipment. |
+| `Canceled` | The shipment was canceled. |
+
+---
+
+## Rating method values
+
+| Value | Description |
+|-------|-------------|
+| `FlatRate` | Fixed charge regardless of distance or weight. |
+| `PerMile` | Charge calculated per mile traveled. |
+| `PerStop` | Charge calculated per stop on the shipment. |
+| `PerPallet` | Charge calculated per pallet. |
+| `PerLinearFeet` | Charge calculated per linear foot of trailer space used. |
+| `FormulaTemplate` | Charge calculated using the assigned formula template. |
+| `Other` | Custom pricing arrangement. |

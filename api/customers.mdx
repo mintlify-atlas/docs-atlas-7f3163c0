@@ -1,0 +1,397 @@
+---
+title: "Customers API"
+description: "Manage customer accounts and contacts"
+---
+
+Customers represent the organizations that hire your company to move freight. Each customer record stores identity, address, geocoding status, and consolidation preferences. An optional billing profile and email profile can be embedded or retrieved separately.
+
+## Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/customers/` | List customers |
+| `GET` | `/customers/{customerID}` | Get a customer |
+| `POST` | `/customers/` | Create a customer |
+| `PUT` | `/customers/{customerID}/` | Replace a customer |
+| `PATCH` | `/customers/{customerID}/` | Partially update a customer |
+| `POST` | `/customers/bulk-update-status/` | Bulk update customer statuses |
+| `GET` | `/customers/select-options/` | List customers for select inputs |
+| `GET` | `/customers/select-options/{customerID}/` | Get a single customer option |
+
+---
+
+## List customers
+
+<ParamField query="query" type="string">
+  Full-text search against `code` and `name`.
+</ParamField>
+
+<ParamField query="limit" type="number" default="10">
+  Number of results per page. Between 1 and 100.
+</ParamField>
+
+<ParamField query="offset" type="number" default="0">
+  Zero-based page offset.
+</ParamField>
+
+<ParamField query="includeState" type="boolean" default="false">
+  Include the linked US state object.
+</ParamField>
+
+<ParamField query="includeBillingProfile" type="boolean" default="false">
+  Include the billing profile and associated document types.
+</ParamField>
+
+<ParamField query="includeEmailProfile" type="boolean" default="false">
+  Include the email notification profile.
+</ParamField>
+
+<ParamField query="fieldFilters" type="string">
+  JSON array of field filter expressions.
+</ParamField>
+
+<ParamField query="filterGroups" type="string">
+  JSON array of grouped filter expressions.
+</ParamField>
+
+<ParamField query="sort" type="string">
+  JSON array of sort field definitions.
+</ParamField>
+
+<ParamField query="geoFilters" type="string">
+  JSON array of geographic proximity filters.
+</ParamField>
+
+```bash
+curl -X GET "https://api.example.com/customers/?limit=20&includeState=true" \
+  -H "Authorization: Bearer {token}"
+```
+
+```json
+{
+  "count": 1,
+  "next": null,
+  "results": [
+    {
+      "id": "cus_01J9ABCDEF",
+      "businessUnitId": "bu_01J9XYZ",
+      "organizationId": "org_01J9XYZ",
+      "stateId": "state_01J9XYZ",
+      "status": "Active",
+      "code": "ACME",
+      "name": "Acme Freight Co.",
+      "addressLine1": "100 Commerce Blvd",
+      "addressLine2": null,
+      "city": "Memphis",
+      "postalCode": "38101",
+      "isGeocoded": true,
+      "longitude": -90.048,
+      "latitude": 35.149,
+      "placeId": "ChIJe...",
+      "allowConsolidation": true,
+      "exclusiveConsolidation": false,
+      "consolidationPriority": 1,
+      "version": 2,
+      "createdAt": 1700000000,
+      "updatedAt": 1700001000
+    }
+  ]
+}
+```
+
+---
+
+## Get a customer
+
+<ParamField path="customerID" type="string" required>
+  The customer ID prefixed with `cus_`.
+</ParamField>
+
+```bash
+curl -X GET "https://api.example.com/customers/cus_01J9ABCDEF" \
+  -H "Authorization: Bearer {token}"
+```
+
+---
+
+## Create a customer
+
+### Request body
+
+<ParamField body="code" type="string" required>
+  Short unique identifier for the customer. Between 1 and 10 characters.
+</ParamField>
+
+<ParamField body="name" type="string" required>
+  Full customer name. Between 1 and 255 characters.
+</ParamField>
+
+<ParamField body="status" type="string" required default="Active">
+  Record status. `Active` or `Inactive`.
+</ParamField>
+
+<ParamField body="stateId" type="string" required>
+  ID of the US state for the customer's address.
+</ParamField>
+
+<ParamField body="addressLine1" type="string" required>
+  Primary street address. Up to 150 characters.
+</ParamField>
+
+<ParamField body="addressLine2" type="string">
+  Secondary address line. Up to 150 characters.
+</ParamField>
+
+<ParamField body="city" type="string" required>
+  City name. Up to 100 characters.
+</ParamField>
+
+<ParamField body="postalCode" type="string" required>
+  US postal code in `12345` or `12345-6789` format.
+</ParamField>
+
+<ParamField body="externalId" type="string">
+  Optional identifier from an external system.
+</ParamField>
+
+<ParamField body="allowConsolidation" type="boolean" default="true">
+  Whether shipments for this customer can be consolidated.
+</ParamField>
+
+<ParamField body="exclusiveConsolidation" type="boolean" default="false">
+  When `true`, consolidated loads must only contain this customer's shipments. Requires `allowConsolidation` to be `true`.
+</ParamField>
+
+<ParamField body="consolidationPriority" type="number" default="1">
+  Priority used when selecting candidates for consolidation.
+</ParamField>
+
+```bash
+curl -X POST "https://api.example.com/customers/" \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code": "ACME",
+    "name": "Acme Freight Co.",
+    "status": "Active",
+    "stateId": "state_01J9XYZ",
+    "addressLine1": "100 Commerce Blvd",
+    "city": "Memphis",
+    "postalCode": "38101",
+    "allowConsolidation": true
+  }'
+```
+
+---
+
+## Bulk update status
+
+<Note>
+  This endpoint is not available to API key authentication. It requires a user session token.
+</Note>
+
+Send a list of customer IDs and a target status to update them all in a single request.
+
+```bash
+curl -X POST "https://api.example.com/customers/bulk-update-status/" \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customerIds": ["cus_01J9ABCDEF", "cus_01J9GHIJKL"],
+    "status": "Inactive"
+  }'
+```
+
+---
+
+## Response fields
+
+<ResponseField name="id" type="string">
+  Unique customer ID with `cus_` prefix.
+</ResponseField>
+
+<ResponseField name="businessUnitId" type="string">
+  ID of the owning business unit.
+</ResponseField>
+
+<ResponseField name="organizationId" type="string">
+  ID of the owning organization.
+</ResponseField>
+
+<ResponseField name="stateId" type="string">
+  ID of the address state.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  `Active` or `Inactive`.
+</ResponseField>
+
+<ResponseField name="code" type="string">
+  Short unique customer code.
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Full customer name.
+</ResponseField>
+
+<ResponseField name="addressLine1" type="string">
+  Primary street address.
+</ResponseField>
+
+<ResponseField name="addressLine2" type="string">
+  Secondary address line.
+</ResponseField>
+
+<ResponseField name="city" type="string">
+  City.
+</ResponseField>
+
+<ResponseField name="postalCode" type="string">
+  US postal code.
+</ResponseField>
+
+<ResponseField name="isGeocoded" type="boolean">
+  Whether the address has been geocoded to coordinates.
+</ResponseField>
+
+<ResponseField name="longitude" type="number">
+  WGS 84 longitude. Present when `isGeocoded` is `true`.
+</ResponseField>
+
+<ResponseField name="latitude" type="number">
+  WGS 84 latitude. Present when `isGeocoded` is `true`.
+</ResponseField>
+
+<ResponseField name="placeId" type="string">
+  Place identifier from the geocoding provider.
+</ResponseField>
+
+<ResponseField name="externalId" type="string">
+  External system identifier.
+</ResponseField>
+
+<ResponseField name="allowConsolidation" type="boolean">
+  Whether the customer allows shipment consolidation.
+</ResponseField>
+
+<ResponseField name="exclusiveConsolidation" type="boolean">
+  Whether consolidated loads must be exclusive to this customer.
+</ResponseField>
+
+<ResponseField name="consolidationPriority" type="number">
+  Consolidation selection priority.
+</ResponseField>
+
+<ResponseField name="version" type="number">
+  Optimistic concurrency version number.
+</ResponseField>
+
+<ResponseField name="createdAt" type="number">
+  Creation timestamp in Unix seconds.
+</ResponseField>
+
+<ResponseField name="updatedAt" type="number">
+  Last update timestamp in Unix seconds.
+</ResponseField>
+
+<ResponseField name="billingProfile" type="object">
+  Billing configuration. Present when `includeBillingProfile=true` or on single-record GET.
+  <Expandable title="billingProfile properties">
+    <ResponseField name="id" type="string">
+      Billing profile ID with `cbp_` prefix.
+    </ResponseField>
+    <ResponseField name="billingCycleType" type="string">
+      Billing cycle frequency. See [Billing cycle values](#billing-cycle-values).
+    </ResponseField>
+    <ResponseField name="paymentTerm" type="string">
+      Payment terms. See [Payment term values](#payment-term-values).
+    </ResponseField>
+    <ResponseField name="creditLimit" type="number">
+      Customer credit limit in the billing currency.
+    </ResponseField>
+    <ResponseField name="creditBalance" type="number">
+      Current outstanding credit balance.
+    </ResponseField>
+    <ResponseField name="creditStatus" type="string">
+      Credit account standing. See [Credit status values](#credit-status-values).
+    </ResponseField>
+    <ResponseField name="enforceCreditLimit" type="boolean">
+      Whether shipments are blocked when the credit limit is exceeded.
+    </ResponseField>
+    <ResponseField name="autoCreditHold" type="boolean">
+      Automatically place the account on hold when the limit is exceeded.
+    </ResponseField>
+    <ResponseField name="invoiceMethod" type="string">
+      `Individual`, `Summary`, or `SummaryWithDetail`.
+    </ResponseField>
+    <ResponseField name="billingCurrency" type="string">
+      ISO 4217 currency code. Default `USD`.
+    </ResponseField>
+    <ResponseField name="requirePONumber" type="boolean">
+      Whether a PO number is required on shipments.
+    </ResponseField>
+    <ResponseField name="requireBOLNumber" type="boolean">
+      Whether a BOL number is required.
+    </ResponseField>
+    <ResponseField name="autoBill" type="boolean">
+      Automatically generate invoices on delivery.
+    </ResponseField>
+    <ResponseField name="taxExempt" type="boolean">
+      Whether the customer is tax exempt.
+    </ResponseField>
+    <ResponseField name="taxExemptNumber" type="string">
+      Tax exemption certificate number.
+    </ResponseField>
+    <ResponseField name="detentionBillingEnabled" type="boolean">
+      Whether detention charges apply.
+    </ResponseField>
+    <ResponseField name="detentionFreeMinutes" type="number">
+      Free detention minutes before charges apply. Default 120.
+    </ResponseField>
+    <ResponseField name="detentionRatePerHour" type="number">
+      Hourly detention charge rate.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="state" type="object">
+  Linked state object. Present when `includeState=true`.
+</ResponseField>
+
+---
+
+## Enum values
+
+### Billing cycle values
+
+| Value | Description |
+|-------|-------------|
+| `Immediate` | Invoice immediately on completion |
+| `Daily` | Batch and invoice daily |
+| `Weekly` | Batch and invoice weekly |
+| `BiWeekly` | Invoice every two weeks |
+| `Monthly` | Invoice monthly |
+| `Quarterly` | Invoice quarterly |
+| `PerShipment` | One invoice per shipment |
+
+### Payment term values
+
+| Value | Description |
+|-------|-------------|
+| `Net10` | Payment due in 10 days |
+| `Net15` | Payment due in 15 days |
+| `Net30` | Payment due in 30 days |
+| `Net45` | Payment due in 45 days |
+| `Net60` | Payment due in 60 days |
+| `Net90` | Payment due in 90 days |
+| `DueOnReceipt` | Payment due on receipt of invoice |
+
+### Credit status values
+
+| Value | Description |
+|-------|-------------|
+| `Active` | Account in good standing |
+| `Warning` | Approaching credit limit |
+| `Hold` | Account on credit hold |
+| `Suspended` | Account suspended |
+| `Review` | Account under credit review |

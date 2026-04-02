@@ -1,0 +1,163 @@
+---
+title: "Billing & Finance"
+description: "Manage billing controls, GL accounts, accessorial charges, and fiscal periods"
+---
+
+## Overview
+
+Trenova's billing and finance features give you end-to-end control over freight rating, invoicing, and accounting integration. This page covers the core financial building blocks: accessorial charges, GL accounts, formula templates for dynamic rating, and fiscal year/period management.
+
+---
+
+## Accessorial charges
+
+**Accessorial charges** are line-item fees added to a shipment beyond the base freight rate — fuel surcharges, detention, layover, tarps, TONU, and more. You define each charge once in the catalog, then apply it to shipments either manually or automatically via billing rules.
+
+| Field | Description |
+|---|---|
+| **Code** | Short identifier, 3–10 characters — required |
+| **Description** | Human-readable description of the charge — required |
+| **Status** | `Active` or `Inactive` |
+| **Method** | How the charge is calculated |
+| **Rate Unit** | Unit of measure for `PerUnit` charges |
+| **Amount** | Base rate for the charge — must be greater than zero |
+
+### Calculation methods
+
+| Method | Description | Example |
+|---|---|---|
+| `Flat` | Fixed dollar amount per occurrence | TONU, tarp charge, hazmat fee |
+| `PerUnit` | Rate multiplied by a unit count | Detention per hour, layover per day |
+| `Percentage` | Percentage of the base freight amount | Fuel surcharge as % of linehaul |
+
+### Rate units (for `PerUnit` charges)
+
+| Unit | Used for |
+|---|---|
+| `Mile` | Team driver pay, per-mile fuel surcharge |
+| `Hour` | Detention, driver assist |
+| `Day` | Layover, storage |
+| `Stop` | Stop-off charges |
+
+<Note>
+`RateUnit` is only required when `Method` is `PerUnit`. For `Flat` and `Percentage` methods, the rate unit field is ignored.
+</Note>
+
+When an accessorial charge is applied to a shipment, it creates an **additional charge** record that stores the method, amount, unit count, and whether Trenova auto-applied it.
+
+---
+
+## GL accounts
+
+**GL accounts** form the chart of accounts used to post freight revenue, accounts receivable, and other financial transactions to your general ledger.
+
+| Field | Description |
+|---|---|
+| **Account Code** | Alphanumeric code, up to 20 characters — required |
+| **Name** | Display name, up to 200 characters — required |
+| **Status** | `Active` or `Inactive` |
+| **Account Type** | Classification of this account (links to account type catalog) |
+| **Parent** | Optional parent account for hierarchical chart of accounts |
+| **Description** | Free-text description |
+| **Is System** | Whether this account is managed by Trenova (not editable) |
+| **Allow Manual JE** | Whether manual journal entries can post to this account |
+| **Require Project** | Whether a project code is required on any posting |
+| **Current Balance** | Running balance |
+| **Debit Balance** | Total debit activity |
+| **Credit Balance** | Total credit activity |
+
+GL accounts support a parent-child hierarchy, allowing you to build a full chart of accounts with summary and detail accounts.
+
+Customer billing profiles can reference specific GL accounts for **revenue recognition** and **accounts receivable** posting, so every invoice automatically credits and debits the correct accounts without manual intervention.
+
+---
+
+## Fiscal years
+
+**Fiscal years** define your accounting calendar. Each fiscal year has a lifecycle:
+
+```
+Draft → Open → Closed → PermanentlyClosed
+              ↑_______↓ (reopen with authorization)
+```
+
+| Status | Description |
+|---|---|
+| `Draft` | Being configured; no transactions can post |
+| `Open` | Active; accepting transactions and journal entries |
+| `Closed` | Year-end close complete; can be reopened for corrections |
+| `PermanentlyClosed` | Auditor-locked; cannot be reopened under any circumstances |
+
+| Field | Description |
+|---|---|
+| **Year** | The calendar year number (e.g., `2026`) |
+| **Name** | Display name (e.g., `FY2026`, `Fiscal Year 2025-2026`) |
+| **Description** | Optional notes |
+| **Start Date** | First day of the fiscal year |
+| **End Date** | Last day of the fiscal year |
+| **Is Current** | Marks this as the active year for day-to-day operations (only one per org) |
+| **Is Calendar Year** | Whether this year aligns with Jan 1 – Dec 31 |
+| **Allow Adjusting Entries** | Master switch allowing adjusting journal entries across all periods in this year |
+
+Trenova tracks who closed, locked, and reopened each fiscal year — along with timestamps and reopen reasons — for full audit compliance.
+
+### Fiscal periods
+
+Each fiscal year contains multiple **fiscal periods** (typically monthly). Periods follow a similar lifecycle and control whether subledger postings and adjusting entries are allowed within that specific window.
+
+---
+
+## Formula templates
+
+**Formula templates** power the dynamic freight rating engine. Instead of hard-coding rates, you write an expression that Trenova evaluates at shipment time using real shipment data — distance, weight, pieces, stops, or any custom variable you define.
+
+| Field | Description |
+|---|---|
+| **Name** | Template name, up to 100 characters — required |
+| **Description** | Optional explanation of what this template calculates |
+| **Type** | `FreightCharge` or `AccessorialCharge` |
+| **Status** | `Draft`, `Active`, or `Inactive` |
+| **Expression** | The formula expression string — required |
+| **Schema ID** | The data schema the expression evaluates against (default: `shipment`) |
+| **Variable Definitions** | Typed variable definitions used in the expression (stored as JSONB) |
+| **Current Version Number** | Incremented on every published change |
+| **Source Template** | Links to a parent template when this is a clone or derivative |
+| **Metadata** | Free-form JSONB metadata |
+
+### Template types
+
+| Type | Description |
+|---|---|
+| `FreightCharge` | Calculates the base freight amount on a shipment |
+| `AccessorialCharge` | Calculates the amount for a specific accessorial charge |
+
+### Template lifecycle
+
+Templates start in `Draft` status while you develop and test the expression. Publish them to `Active` to make them available for shipment assignment. Set to `Inactive` to retire a template without deleting its history.
+
+Every template maintains a full **version history**. When you update an expression, Trenova increments the version number and retains the prior version for audit and rollback.
+
+<Tip>
+Assign a formula template to each shipment to ensure consistent, auditable rate calculations. A formula template is required on every shipment — create a simple flat-rate template as your default if you are just getting started.
+</Tip>
+
+---
+
+## Customer billing controls
+
+Per-customer billing behavior is configured in the **customer billing profile**, including billing cycles, payment terms, credit limits, detention settings, and GL account assignments. Refer to the Customer Management page for the full billing profile reference.
+
+<CardGroup cols={2}>
+  <Card title="Customers" icon="building-user" href="/features/customers">
+    Customer billing profiles and per-customer controls
+  </Card>
+  <Card title="Commodities API" icon="code" href="/api/commodities">
+    Commodity-based billing and hazmat commodity designations
+  </Card>
+  <Card title="Shipment Management" icon="package" href="/features/shipments">
+    Formula template assignment and additional charges on shipments
+  </Card>
+  <Card title="Organization Settings" icon="building" href="/admin/organizations">
+    Organization-level billing defaults and controls
+  </Card>
+</CardGroup>

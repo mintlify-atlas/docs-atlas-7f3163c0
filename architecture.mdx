@@ -1,0 +1,147 @@
+---
+title: "Architecture"
+description: "How Trenova's services fit together"
+---
+
+Trenova is structured as a Go monorepo containing multiple backend services, a React frontend, and supporting infrastructure. Each component has a well-defined responsibility and communicates through explicit interfaces.
+
+## Repository layout
+
+```
+trenova-2/
+├── services/
+│   ├── tms/            # Main TMS API (Go, Gin, Uber FX, Bun ORM)
+│   ├── gtc/            # CDC pipeline (Postgres → Redis / Meilisearch)
+│   └── samsara-sim/    # Samsara telematics simulator
+├── shared/             # Shared Go packages used by all services
+├── client/             # React 19 + TypeScript + Vite frontend
+├── deploy/             # Docker Compose files and setup scripts
+└── go.work             # Go workspace configuration
+```
+
+### services/tms
+
+The primary API service. It exposes a versioned REST API under `/api/v1` using the [Gin](https://github.com/gin-gonic/gin) HTTP framework. All routes are either public (authentication, API docs, version info) or protected by a session-based `AuthMiddleware`. Dependency injection is handled at startup by [Uber FX](https://github.com/uber-go/fx), which wires together handlers, services, repositories, and infrastructure adapters.
+
+### services/gtc
+
+A Change Data Capture pipeline that listens to PostgreSQL logical replication and propagates changes to Redis and Meilisearch. This keeps search indices and cache layers in sync without polling the database from the API.
+
+### services/samsara-sim
+
+A simulator for the Samsara telematics API, used during development and testing to generate realistic vehicle location and event data without physical hardware.
+
+### client/
+
+A React 19 application built with TypeScript and Vite. Linting is enforced with OxLint; formatting with OxFmt (double quotes, semicolons, 100-character line width). The frontend communicates exclusively with the TMS API over HTTP.
+
+---
+
+## Infrastructure services
+
+All infrastructure components run inside a Docker bridge network (`trenova`). Only Caddy exposes ports to the host.
+
+| Service | Port | Purpose |
+|---------|------|---------|
+| PostgreSQL (PostGIS) | 5432 | Primary relational database |
+| Redis 8 | 6379 | Cache, JSON storage, and streams |
+| Meilisearch | 7700 | Full-text search |
+| MinIO | 9000, 9001 | Object storage for documents and attachments |
+| Temporal | 7233 | Workflow engine for async and durable jobs |
+| Caddy | 80, 443 | HTTP/HTTPS reverse proxy with automatic TLS |
+| PgBouncer | 6432 | PostgreSQL connection pooling |
+
+TMS services connect to PostgreSQL through PgBouncer on port 6432. Temporal connects directly to PostgreSQL on port 5432 to avoid connection pooling conflicts with its internal session handling.
+
+---
+
+## TMS service architecture
+
+`services/tms` follows a Hexagonal / Ports & Adapters pattern with Domain-Driven Design. The layers are strictly separated so that business logic has no knowledge of HTTP, databases, or caches.
+
+```
+services/tms/
+├── cmd/cli/                    # Entry point (Cobra CLI)
+│   ├── api/                    # API server command
+│   └── db/                     # Database migration and seed commands
+├── internal/
+│   ├── api/                    # HTTP layer
+│   │   ├── handlers/           # Gin request handlers (one package per domain)
+│   │   ├── middleware/         # Auth, permissions, observability
+│   │   └── router.go           # Route registration
+│   ├── bootstrap/              # Uber FX module definitions
+│   ├── core/                   # Pure business logic
+│   │   ├── domain/             # Domain entities and value objects
+│   │   ├── ports/
+│   │   │   ├── repositories/   # Data access contracts (interfaces)
+│   │   │   └── services/       # Service port definitions (interfaces)
+│   │   └── services/           # Business logic implementations
+│   └── infrastructure/         # Technical adapters
+│       ├── postgres/           # Repository implementations (Bun ORM)
+│       ├── redis/              # Cache adapter
+│       ├── database/           # Migrations and seed data
+│       └── config/             # Configuration management
+└── pkg/                        # Public packages
+    ├── errortypes/             # Structured HTTP and field-level errors
+    ├── domaintypes/            # Shared value types
+    └── validationframework/    # Validation engine
+```
+
+### Request flow
+
+Every inbound request travels through the following layers in order:
+
+```
+HTTP Request → Handler → Service → Validator → Repository → Database / Cache
+```
+
+1. **Handler** — Parses and binds the incoming JSON body or query parameters, then delegates to the service layer.
+2. **Service** — Enforces business rules, coordinates domain entities, and calls repositories through port interfaces.
+3. **Validator** — Runs [Ozzo validation](https://github.com/go-ozzo/ozzo-validation) rules on domain structs. Errors are collected into a `MultiError` and returned as structured 422 responses with field-level detail.
+4. **Repository** — Executes SQL against PostgreSQL through Bun ORM, or reads from Redis cache.
+
+### Domain entities
+
+Domain entities live in `internal/core/domain/`. Each entity embeds `bun.BaseModel` for ORM mapping and implements a `Validate` method that accumulates field-level errors:
+
+```go
+// services/tms/internal/core/domain/shipment/shipment.go
+type Shipment struct {
+    bun.BaseModel `bun:"table:shipments,alias:sp"`
+
+    ID             pulid.ID `bun:"id,pk,type:VARCHAR(100),notnull"`
+    OrganizationID pulid.ID `bun:"organization_id,type:VARCHAR(100),pk,notnull"`
+    Status         Status   `bun:"status,type:shipment_status_enum,notnull,default:'New'"`
+    ProNumber      string   `bun:"pro_number,type:VARCHAR(100),notnull"`
+    // ...
+}
+```
+
+Shipment status transitions span `New`, `PartiallyAssigned`, `Assigned`, `InTransit`, `Delayed`, `PartiallyCompleted`, `ReadyToInvoice`, `Completed`, `Invoiced`, and `Canceled`.
+
+### Identifiers
+
+All entity IDs use **PULID** (Prefix-based ULID) — a lexicographically sortable, distributed-safe identifier with a human-readable prefix. For example, shipment IDs are prefixed `shp_`, generated in `BeforeAppendModel` on insert:
+
+```go
+if s.ID.IsNil() {
+    s.ID = pulid.MustNew("shp_")
+}
+```
+
+This makes IDs debuggable in logs and API responses without sacrificing uniqueness guarantees.
+
+---
+
+## Key dependencies
+
+| Dependency | Role |
+|-----------|------|
+| [Uber FX](https://github.com/uber-go/fx) | Compile-time dependency injection |
+| [Gin](https://github.com/gin-gonic/gin) | HTTP router and middleware |
+| [Bun ORM](https://bun.uptrace.dev/) | SQL builder on top of pgx |
+| [Ozzo validation](https://github.com/go-ozzo/ozzo-validation) | Struct and field validation |
+| [sonic](https://github.com/bytedance/sonic) | High-performance JSON (replaces `encoding/json`) |
+| [Temporal Go SDK](https://github.com/temporalio/sdk-go) | Durable workflow execution |
+| [Zap](https://github.com/uber-go/zap) | Structured logging |
+| [shopspring/decimal](https://github.com/shopspring/decimal) | Precise monetary arithmetic |

@@ -1,0 +1,550 @@
+---
+title: "Workers API"
+description: "Manage driver and worker records"
+---
+
+Workers represent the drivers and contractors who operate within your organization. Each worker record stores identity information, address data, dispatch availability, and links to a required [worker profile](#worker-profile) that holds all compliance and licensing data.
+
+## Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/workers/` | List workers |
+| `GET` | `/workers/{workerID}/` | Get a worker |
+| `POST` | `/workers/` | Create a worker |
+| `PUT` | `/workers/{workerID}/` | Replace a worker |
+| `PATCH` | `/workers/{workerID}/` | Partially update a worker |
+| `GET` | `/workers/select-options/` | List workers for select inputs |
+| `GET` | `/workers/select-options/{workerID}` | Get a single worker option |
+
+---
+
+## List workers
+
+<ParamField query="query" type="string">
+  Full-text search against first name, last name, and type.
+</ParamField>
+
+<ParamField query="limit" type="number" default="10">
+  Number of results per page. Must be between 1 and 100.
+</ParamField>
+
+<ParamField query="offset" type="number" default="0">
+  Zero-based page offset.
+</ParamField>
+
+```bash
+curl -X GET "https://api.example.com/workers/?limit=20&offset=0" \
+  -H "Authorization: Bearer {token}"
+```
+
+```json
+{
+  "count": 1,
+  "next": null,
+  "results": [
+    {
+      "id": "wrk_01J9ABCDEF",
+      "businessUnitId": "bu_01J9XYZ",
+      "organizationId": "org_01J9XYZ",
+      "stateId": "state_01J9XYZ",
+      "fleetCodeId": "fc_01J9XYZ",
+      "managerId": null,
+      "status": "Active",
+      "type": "Employee",
+      "driverType": "OTR",
+      "firstName": "Jane",
+      "lastName": "Doe",
+      "wholeName": "Jane Doe",
+      "addressLine1": "123 Main St",
+      "addressLine2": null,
+      "city": "Nashville",
+      "postalCode": "37201",
+      "email": "jane.doe@example.com",
+      "phoneNumber": "+16155550100",
+      "gender": "Female",
+      "canBeAssigned": true,
+      "availableForDispatch": true,
+      "version": 1,
+      "createdAt": 1700000000,
+      "updatedAt": 1700000000
+    }
+  ]
+}
+```
+
+---
+
+## Get a worker
+
+Returns a single worker including the associated profile and state.
+
+<ParamField path="workerID" type="string" required>
+  The worker ID prefixed with `wrk_`.
+</ParamField>
+
+```bash
+curl -X GET "https://api.example.com/workers/wrk_01J9ABCDEF/" \
+  -H "Authorization: Bearer {token}"
+```
+
+---
+
+## Create a worker
+
+<Note>
+  The `profile` object is required on creation. Submit it nested inside the worker payload.
+</Note>
+
+### Request body
+
+<ParamField body="firstName" type="string" required>
+  Worker's first name. Between 1 and 100 characters.
+</ParamField>
+
+<ParamField body="lastName" type="string" required>
+  Worker's last name. Between 1 and 100 characters.
+</ParamField>
+
+<ParamField body="gender" type="string" required>
+  Gender of the worker. See [Gender values](#gender-values).
+</ParamField>
+
+<ParamField body="status" type="string" required default="Active">
+  Record status. `Active` or `Inactive`.
+</ParamField>
+
+<ParamField body="type" type="string" required default="Employee">
+  Employment classification. See [Worker type values](#worker-type-values).
+</ParamField>
+
+<ParamField body="driverType" type="string" required default="OTR">
+  Driver operational category. See [Driver type values](#driver-type-values).
+</ParamField>
+
+<ParamField body="stateId" type="string" required>
+  ID of the US state for the worker's home address.
+</ParamField>
+
+<ParamField body="addressLine1" type="string" required>
+  Primary street address. Up to 150 characters.
+</ParamField>
+
+<ParamField body="addressLine2" type="string">
+  Secondary address line. Up to 150 characters.
+</ParamField>
+
+<ParamField body="city" type="string" required>
+  City name. Up to 100 characters.
+</ParamField>
+
+<ParamField body="postalCode" type="string" required>
+  US postal code in `12345` or `12345-6789` format.
+</ParamField>
+
+<ParamField body="email" type="string">
+  Worker's email address. Up to 255 characters.
+</ParamField>
+
+<ParamField body="phoneNumber" type="string">
+  Phone number in E.164 format (e.g., `+16155550100`).
+</ParamField>
+
+<ParamField body="emergencyContactName" type="string">
+  Name of the emergency contact. Up to 100 characters.
+</ParamField>
+
+<ParamField body="emergencyContactPhone" type="string">
+  Emergency contact phone in E.164 format.
+</ParamField>
+
+<ParamField body="fleetCodeId" type="string">
+  ID of the fleet code this worker belongs to.
+</ParamField>
+
+<ParamField body="managerId" type="string">
+  ID of the manager (user) responsible for this worker.
+</ParamField>
+
+<ParamField body="profilePicUrl" type="string">
+  URL to the worker's profile picture. Up to 255 characters.
+</ParamField>
+
+<ParamField body="externalId" type="string">
+  Optional identifier from an external system.
+</ParamField>
+
+<ParamField body="canBeAssigned" type="boolean" default="false">
+  Whether the worker can be assigned to shipments.
+</ParamField>
+
+<ParamField body="availableForDispatch" type="boolean" default="true">
+  Whether the worker is currently available for dispatch.
+</ParamField>
+
+<ParamField body="assignmentBlocked" type="string">
+  Reason assignment is blocked, if applicable.
+</ParamField>
+
+<ParamField body="profile" type="object" required>
+  Worker compliance profile. Required on creation.
+  <Expandable title="profile properties">
+    <ParamField body="dob" type="number" required>
+      Date of birth as a Unix timestamp (seconds).
+    </ParamField>
+    <ParamField body="licenseNumber" type="string" required>
+      CDL license number. Up to 50 characters.
+    </ParamField>
+    <ParamField body="cdlClass" type="string" required default="A">
+      CDL class. One of `A`, `B`, or `C`.
+    </ParamField>
+    <ParamField body="cdlRestrictions" type="string">
+      Any CDL restriction codes. Up to 100 characters.
+    </ParamField>
+    <ParamField body="endorsement" type="string" required default="O">
+      CDL endorsement code. See [Endorsement values](#endorsement-values).
+    </ParamField>
+    <ParamField body="licenseExpiry" type="number" required>
+      License expiration date as a Unix timestamp.
+    </ParamField>
+    <ParamField body="hazmatExpiry" type="number">
+      Hazmat endorsement expiry as a Unix timestamp. Required when `endorsement` is `H` or `X`.
+    </ParamField>
+    <ParamField body="hireDate" type="number" required>
+      Hire date as a Unix timestamp.
+    </ParamField>
+    <ParamField body="terminationDate" type="number">
+      Termination date as a Unix timestamp.
+    </ParamField>
+    <ParamField body="medicalCardExpiry" type="number">
+      Medical card expiry as a Unix timestamp.
+    </ParamField>
+    <ParamField body="medicalExaminerName" type="string">
+      Name of the DOT medical examiner. Up to 100 characters.
+    </ParamField>
+    <ParamField body="medicalExaminerNpi" type="string">
+      NPI number of the medical examiner. Up to 20 characters.
+    </ParamField>
+    <ParamField body="twicCardNumber" type="string">
+      TWIC card number. Up to 50 characters.
+    </ParamField>
+    <ParamField body="twicExpiry" type="number">
+      TWIC card expiry as a Unix timestamp.
+    </ParamField>
+    <ParamField body="licenseStateId" type="string">
+      State ID where the CDL was issued.
+    </ParamField>
+    <ParamField body="complianceStatus" type="string" default="Pending">
+      Current compliance status. See [Compliance status values](#compliance-status-values).
+    </ParamField>
+    <ParamField body="isQualified" type="boolean" default="false">
+      Whether the worker meets all qualification requirements.
+    </ParamField>
+    <ParamField body="disqualificationReason" type="string">
+      Reason the worker is disqualified, if applicable.
+    </ParamField>
+    <ParamField body="eldExempt" type="boolean" default="false">
+      Whether the worker is exempt from ELD requirements.
+    </ParamField>
+    <ParamField body="shortHaulExempt" type="boolean" default="false">
+      Whether the worker qualifies for the short-haul exemption.
+    </ParamField>
+    <ParamField body="physicalDueDate" type="number">
+      Next required physical exam date as a Unix timestamp.
+    </ParamField>
+    <ParamField body="mvrDueDate" type="number">
+      Next required MVR check date as a Unix timestamp.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="customFields" type="object">
+  Map of custom field key/value pairs defined for your organization.
+</ParamField>
+
+```bash
+curl -X POST "https://api.example.com/workers/" \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "firstName": "Jane",
+    "lastName": "Doe",
+    "gender": "Female",
+    "status": "Active",
+    "type": "Employee",
+    "driverType": "OTR",
+    "stateId": "state_01J9XYZ",
+    "addressLine1": "123 Main St",
+    "city": "Nashville",
+    "postalCode": "37201",
+    "phoneNumber": "+16155550100",
+    "canBeAssigned": true,
+    "availableForDispatch": true,
+    "profile": {
+      "dob": 694224000,
+      "licenseNumber": "D1234567",
+      "cdlClass": "A",
+      "endorsement": "O",
+      "licenseExpiry": 1893456000,
+      "hireDate": 1700000000,
+      "complianceStatus": "Compliant",
+      "isQualified": true
+    }
+  }'
+```
+
+---
+
+## Response fields
+
+<ResponseField name="id" type="string">
+  Unique worker ID with `wrk_` prefix.
+</ResponseField>
+
+<ResponseField name="businessUnitId" type="string">
+  ID of the owning business unit.
+</ResponseField>
+
+<ResponseField name="organizationId" type="string">
+  ID of the owning organization.
+</ResponseField>
+
+<ResponseField name="stateId" type="string">
+  ID of the home address state.
+</ResponseField>
+
+<ResponseField name="fleetCodeId" type="string">
+  ID of the assigned fleet code, if any.
+</ResponseField>
+
+<ResponseField name="managerId" type="string">
+  ID of the assigned manager user, if any.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Record status: `Active` or `Inactive`.
+</ResponseField>
+
+<ResponseField name="type" type="string">
+  Worker type: `Employee` or `Contractor`.
+</ResponseField>
+
+<ResponseField name="driverType" type="string">
+  Driver category: `Local`, `Regional`, `OTR`, or `Team`.
+</ResponseField>
+
+<ResponseField name="firstName" type="string">
+  Worker's first name.
+</ResponseField>
+
+<ResponseField name="lastName" type="string">
+  Worker's last name.
+</ResponseField>
+
+<ResponseField name="wholeName" type="string">
+  Computed full name (read-only).
+</ResponseField>
+
+<ResponseField name="gender" type="string">
+  `Male` or `Female`.
+</ResponseField>
+
+<ResponseField name="addressLine1" type="string">
+  Primary street address.
+</ResponseField>
+
+<ResponseField name="addressLine2" type="string">
+  Secondary address line.
+</ResponseField>
+
+<ResponseField name="city" type="string">
+  City.
+</ResponseField>
+
+<ResponseField name="postalCode" type="string">
+  US postal code.
+</ResponseField>
+
+<ResponseField name="email" type="string">
+  Email address.
+</ResponseField>
+
+<ResponseField name="phoneNumber" type="string">
+  Phone number in E.164 format.
+</ResponseField>
+
+<ResponseField name="emergencyContactName" type="string">
+  Emergency contact name.
+</ResponseField>
+
+<ResponseField name="emergencyContactPhone" type="string">
+  Emergency contact phone in E.164 format.
+</ResponseField>
+
+<ResponseField name="profilePicUrl" type="string">
+  URL to the profile picture.
+</ResponseField>
+
+<ResponseField name="externalId" type="string">
+  External system identifier.
+</ResponseField>
+
+<ResponseField name="canBeAssigned" type="boolean">
+  Whether the worker can be assigned to shipments.
+</ResponseField>
+
+<ResponseField name="availableForDispatch" type="boolean">
+  Whether the worker is currently available for dispatch.
+</ResponseField>
+
+<ResponseField name="assignmentBlocked" type="string">
+  Reason assignment is blocked, if set.
+</ResponseField>
+
+<ResponseField name="version" type="number">
+  Optimistic concurrency version number.
+</ResponseField>
+
+<ResponseField name="createdAt" type="number">
+  Creation timestamp in Unix seconds.
+</ResponseField>
+
+<ResponseField name="updatedAt" type="number">
+  Last update timestamp in Unix seconds.
+</ResponseField>
+
+<ResponseField name="profile" type="object">
+  The worker's compliance profile. Included on single-record GET requests.
+  <Expandable title="profile properties">
+    <ResponseField name="id" type="string">
+      Profile ID with `wrkp_` prefix.
+    </ResponseField>
+    <ResponseField name="workerId" type="string">
+      Parent worker ID.
+    </ResponseField>
+    <ResponseField name="dob" type="number">
+      Date of birth as a Unix timestamp.
+    </ResponseField>
+    <ResponseField name="licenseNumber" type="string">
+      CDL license number.
+    </ResponseField>
+    <ResponseField name="cdlClass" type="string">
+      CDL class: `A`, `B`, or `C`.
+    </ResponseField>
+    <ResponseField name="cdlRestrictions" type="string">
+      CDL restriction codes, if any.
+    </ResponseField>
+    <ResponseField name="endorsement" type="string">
+      CDL endorsement code.
+    </ResponseField>
+    <ResponseField name="licenseExpiry" type="number">
+      License expiration as a Unix timestamp.
+    </ResponseField>
+    <ResponseField name="hazmatExpiry" type="number">
+      Hazmat endorsement expiry as a Unix timestamp.
+    </ResponseField>
+    <ResponseField name="hireDate" type="number">
+      Hire date as a Unix timestamp.
+    </ResponseField>
+    <ResponseField name="terminationDate" type="number">
+      Termination date as a Unix timestamp.
+    </ResponseField>
+    <ResponseField name="medicalCardExpiry" type="number">
+      Medical card expiry as a Unix timestamp.
+    </ResponseField>
+    <ResponseField name="twicCardNumber" type="string">
+      TWIC card number.
+    </ResponseField>
+    <ResponseField name="twicExpiry" type="number">
+      TWIC expiry as a Unix timestamp.
+    </ResponseField>
+    <ResponseField name="complianceStatus" type="string">
+      Current compliance status: `Compliant`, `NonCompliant`, or `Pending`.
+    </ResponseField>
+    <ResponseField name="isQualified" type="boolean">
+      Whether all qualifications are met.
+    </ResponseField>
+    <ResponseField name="disqualificationReason" type="string">
+      Disqualification reason, if applicable.
+    </ResponseField>
+    <ResponseField name="eldExempt" type="boolean">
+      ELD exemption status.
+    </ResponseField>
+    <ResponseField name="shortHaulExempt" type="boolean">
+      Short-haul exemption status.
+    </ResponseField>
+    <ResponseField name="physicalDueDate" type="number">
+      Next physical exam due date as a Unix timestamp.
+    </ResponseField>
+    <ResponseField name="mvrDueDate" type="number">
+      Next MVR check due date as a Unix timestamp.
+    </ResponseField>
+    <ResponseField name="lastComplianceCheck" type="number">
+      Timestamp of the last compliance check.
+    </ResponseField>
+    <ResponseField name="lastMvrCheck" type="number">
+      Timestamp of the last MVR check.
+    </ResponseField>
+    <ResponseField name="lastDrugTest" type="number">
+      Timestamp of the last drug test.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="customFields" type="object">
+  Map of custom field values.
+</ResponseField>
+
+---
+
+## Enum values
+
+### Worker type values
+
+| Value | Description |
+|-------|-------------|
+| `Employee` | W-2 employee of the organization |
+| `Contractor` | Independent contractor |
+
+### Driver type values
+
+| Value | Description |
+|-------|-------------|
+| `Local` | Operates within a local radius |
+| `Regional` | Operates within a regional area |
+| `OTR` | Over-the-road, long-haul driver |
+| `Team` | Operates as part of a two-driver team |
+
+### Gender values
+
+| Value |
+|-------|
+| `Male` |
+| `Female` |
+
+### Endorsement values
+
+| Value | Description |
+|-------|-------------|
+| `O` | No endorsement |
+| `N` | Tanker vehicles |
+| `H` | Hazardous materials |
+| `X` | Tanker and hazmat combined |
+| `P` | Passenger vehicles |
+| `T` | Double/triple trailers |
+
+### CDL class values
+
+| Value | Description |
+|-------|-------------|
+| `A` | Any combination of vehicles with a GCWR of 26,001+ lbs |
+| `B` | Single vehicle with a GVWR of 26,001+ lbs |
+| `C` | Vehicles not meeting Class A or B criteria |
+
+### Compliance status values
+
+| Value | Description |
+|-------|-------------|
+| `Compliant` | All requirements are met |
+| `NonCompliant` | One or more requirements are not met |
+| `Pending` | Compliance review is in progress |

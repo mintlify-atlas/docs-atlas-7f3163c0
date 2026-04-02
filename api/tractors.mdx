@@ -1,0 +1,367 @@
+---
+title: "Tractors API"
+description: "Manage tractor records in your fleet"
+---
+
+Tractors are the power units in your fleet. Each tractor record captures the vehicle's identification details, registration, current status, and the worker assigned as its primary operator. You can create, read, update, and bulk-update tractor records through this API.
+
+## Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/v1/tractors/` | List tractors |
+| `GET` | `/api/v1/tractors/:tractorID/` | Get a single tractor |
+| `POST` | `/api/v1/tractors/` | Create a tractor |
+| `PUT` | `/api/v1/tractors/:tractorID/` | Replace a tractor record |
+| `PATCH` | `/api/v1/tractors/:tractorID/` | Partially update a tractor record |
+| `POST` | `/api/v1/tractors/bulk-update-status/` | Update the status of multiple tractors |
+| `GET` | `/api/v1/tractors/select-options/` | List tractors for select/autocomplete inputs |
+
+---
+
+## GET /api/v1/tractors/
+
+Returns a paginated list of tractors for the authenticated organization.
+
+### Query parameters
+
+<ParamField query="query" type="string">
+  Full-text search across `code`, `vin`, and `licensePlateNumber`.
+</ParamField>
+
+<ParamField query="status" type="string">
+  Filter by equipment status. Must be one of the [status values](#status-values).
+</ParamField>
+
+<ParamField query="includeEquipmentDetails" type="boolean">
+  When `true`, expands `equipmentType` and `equipmentManufacturer` relations.
+</ParamField>
+
+<ParamField query="includeFleetDetails" type="boolean">
+  When `true`, expands the `fleetCode` relation.
+</ParamField>
+
+<ParamField query="includeWorkerDetails" type="boolean">
+  When `true`, expands `primaryWorker` and `secondaryWorker` relations.
+</ParamField>
+
+<ParamField query="limit" type="integer">
+  Number of records per page. Min `1`, max `100`. Defaults to `10`.
+</ParamField>
+
+<ParamField query="offset" type="integer">
+  Zero-based page offset. Defaults to `0`.
+</ParamField>
+
+### Example response
+
+```json
+{
+  "count": 1,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": "trac_01j9z...",
+      "code": "UNIT-101",
+      "status": "Available",
+      "make": "Kenworth",
+      "model": "T680",
+      "year": 2022,
+      "vin": "1XKYDP9X5NJ123456",
+      "licensePlateNumber": "TX-ABC123",
+      "primaryWorkerId": "wrk_01j9z...",
+      "equipmentTypeId": "et_01j9z...",
+      "equipmentManufacturerId": "em_01j9z...",
+      "fleetCodeId": "fc_01j9z...",
+      "version": 1,
+      "createdAt": 1712000000,
+      "updatedAt": 1712000000
+    }
+  ]
+}
+```
+
+---
+
+## GET /api/v1/tractors/:tractorID/
+
+Returns a single tractor by ID.
+
+### Path parameters
+
+<ParamField path="tractorID" type="string" required>
+  The tractor ID (prefixed `trac_`).
+</ParamField>
+
+---
+
+## POST /api/v1/tractors/
+
+Creates a new tractor record. Returns `201 Created`.
+
+### Request body
+
+<ParamField body="code" type="string" required>
+  Internal unit code or number (e.g., `UNIT-101`). 1–50 characters.
+</ParamField>
+
+<ParamField body="equipmentTypeId" type="string" required>
+  ID of the equipment type that classifies this tractor.
+</ParamField>
+
+<ParamField body="equipmentManufacturerId" type="string" required>
+  ID of the equipment manufacturer.
+</ParamField>
+
+<ParamField body="primaryWorkerId" type="string" required>
+  ID of the worker assigned as the primary driver of this tractor.
+</ParamField>
+
+<ParamField body="status" type="string">
+  Equipment status. Defaults to `Available`. See [status values](#status-values).
+</ParamField>
+
+<ParamField body="make" type="string">
+  Manufacturer make (e.g., `Kenworth`). Max 50 characters.
+</ParamField>
+
+<ParamField body="model" type="string">
+  Vehicle model (e.g., `T680`). Max 50 characters.
+</ParamField>
+
+<ParamField body="year" type="integer">
+  Model year. Must be between `1900` and `2099`.
+</ParamField>
+
+<ParamField body="vin" type="string">
+  Vehicle Identification Number. Must conform to VIN format if provided.
+</ParamField>
+
+<ParamField body="licensePlateNumber" type="string">
+  License plate number. Max 50 characters.
+</ParamField>
+
+<ParamField body="registrationNumber" type="string">
+  Vehicle registration number. Max 50 characters.
+</ParamField>
+
+<ParamField body="registrationExpiry" type="integer">
+  Registration expiration date as a Unix epoch timestamp.
+</ParamField>
+
+<ParamField body="stateId" type="string">
+  ID of the US state where the vehicle is registered.
+</ParamField>
+
+<ParamField body="fleetCodeId" type="string">
+  ID of the fleet code group this tractor belongs to.
+</ParamField>
+
+<ParamField body="secondaryWorkerId" type="string">
+  ID of a secondary worker associated with this tractor.
+</ParamField>
+
+### Example request
+
+```bash
+curl -X POST https://api.trenova.app/api/v1/tractors/ \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code": "UNIT-101",
+    "equipmentTypeId": "et_01j9z...",
+    "equipmentManufacturerId": "em_01j9z...",
+    "primaryWorkerId": "wrk_01j9z...",
+    "status": "Available",
+    "make": "Kenworth",
+    "model": "T680",
+    "year": 2022,
+    "vin": "1XKYDP9X5NJ123456",
+    "licensePlateNumber": "TX-ABC123",
+    "fleetCodeId": "fc_01j9z..."
+  }'
+```
+
+### Example response
+
+```json
+{
+  "id": "trac_01j9z...",
+  "code": "UNIT-101",
+  "status": "Available",
+  "make": "Kenworth",
+  "model": "T680",
+  "year": 2022,
+  "vin": "1XKYDP9X5NJ123456",
+  "licensePlateNumber": "TX-ABC123",
+  "registrationNumber": null,
+  "registrationExpiry": null,
+  "primaryWorkerId": "wrk_01j9z...",
+  "secondaryWorkerId": null,
+  "equipmentTypeId": "et_01j9z...",
+  "equipmentManufacturerId": "em_01j9z...",
+  "fleetCodeId": "fc_01j9z...",
+  "stateId": null,
+  "businessUnitId": "bu_01j9z...",
+  "organizationId": "org_01j9z...",
+  "version": 1,
+  "createdAt": 1712000000,
+  "updatedAt": 1712000000
+}
+```
+
+---
+
+## PUT /api/v1/tractors/:tractorID/
+
+Replaces all fields on an existing tractor record with the values provided in the request body.
+
+### Path parameters
+
+<ParamField path="tractorID" type="string" required>
+  The tractor ID to update.
+</ParamField>
+
+---
+
+## PATCH /api/v1/tractors/:tractorID/
+
+Partially updates a tractor. Only fields present in the request body are changed; all other fields retain their current values.
+
+### Path parameters
+
+<ParamField path="tractorID" type="string" required>
+  The tractor ID to patch.
+</ParamField>
+
+---
+
+## POST /api/v1/tractors/bulk-update-status/
+
+Updates the status of multiple tractors at once. Not available to API key authentication — requires a user session.
+
+### Request body
+
+<ParamField body="tractorIds" type="array" required>
+  Array of tractor IDs (prefixed `trac_`) to update.
+</ParamField>
+
+<ParamField body="status" type="string" required>
+  The new status to apply to all specified tractors. Must be a valid [status value](#status-values).
+</ParamField>
+
+### Example request
+
+```bash
+curl -X POST https://api.trenova.app/api/v1/tractors/bulk-update-status/ \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tractorIds": ["trac_01j9z...", "trac_02j9z..."],
+    "status": "OutOfService"
+  }'
+```
+
+---
+
+## Response fields
+
+<ResponseField name="id" type="string">
+  Unique tractor identifier, prefixed `trac_`.
+</ResponseField>
+
+<ResponseField name="businessUnitId" type="string">
+  ID of the business unit that owns this tractor.
+</ResponseField>
+
+<ResponseField name="organizationId" type="string">
+  ID of the organization that owns this tractor.
+</ResponseField>
+
+<ResponseField name="code" type="string">
+  Internal unit identifier code.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current equipment status. See [status values](#status-values).
+</ResponseField>
+
+<ResponseField name="make" type="string">
+  Manufacturer make.
+</ResponseField>
+
+<ResponseField name="model" type="string">
+  Vehicle model.
+</ResponseField>
+
+<ResponseField name="year" type="integer">
+  Model year.
+</ResponseField>
+
+<ResponseField name="vin" type="string">
+  Vehicle Identification Number.
+</ResponseField>
+
+<ResponseField name="licensePlateNumber" type="string">
+  License plate number.
+</ResponseField>
+
+<ResponseField name="registrationNumber" type="string">
+  Vehicle registration number.
+</ResponseField>
+
+<ResponseField name="registrationExpiry" type="integer">
+  Registration expiration date as a Unix epoch timestamp.
+</ResponseField>
+
+<ResponseField name="primaryWorkerId" type="string">
+  ID of the primary worker assigned to this tractor.
+</ResponseField>
+
+<ResponseField name="secondaryWorkerId" type="string">
+  ID of the secondary worker assigned to this tractor. Null if not set.
+</ResponseField>
+
+<ResponseField name="equipmentTypeId" type="string">
+  ID of the equipment type.
+</ResponseField>
+
+<ResponseField name="equipmentManufacturerId" type="string">
+  ID of the equipment manufacturer.
+</ResponseField>
+
+<ResponseField name="fleetCodeId" type="string">
+  ID of the fleet code group. Null if not assigned to a fleet.
+</ResponseField>
+
+<ResponseField name="stateId" type="string">
+  ID of the registration state.
+</ResponseField>
+
+<ResponseField name="customFields" type="object">
+  Key/value map of custom field values defined by your organization.
+</ResponseField>
+
+<ResponseField name="version" type="integer">
+  Optimistic concurrency version.
+</ResponseField>
+
+<ResponseField name="createdAt" type="integer">
+  Unix epoch timestamp of record creation.
+</ResponseField>
+
+<ResponseField name="updatedAt" type="integer">
+  Unix epoch timestamp of last update.
+</ResponseField>
+
+---
+
+## Status values
+
+| Value | Description |
+|-------|-------------|
+| `Available` | The tractor is available for dispatch. |
+| `OutOfService` | The tractor is not available (e.g., in maintenance). |
+| `AtMaintenance` | The tractor is currently undergoing maintenance. |
+| `Sold` | The tractor has been sold and is no longer in service. |

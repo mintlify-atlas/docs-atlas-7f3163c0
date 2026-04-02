@@ -1,0 +1,287 @@
+---
+title: "Commodities API"
+description: "Manage commodity types for shipment cargo"
+---
+
+Commodities define the types of cargo your organization moves. Each commodity record captures physical handling requirements such as temperature ranges, freight classification, weight and dimension data, and an optional link to a hazardous material record.
+
+## Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/commodities/` | List commodities |
+| `GET` | `/commodities/{commodityID}` | Get a commodity |
+| `POST` | `/commodities/` | Create a commodity |
+| `PUT` | `/commodities/{commodityID}/` | Replace a commodity |
+| `PATCH` | `/commodities/{commodityID}/` | Partially update a commodity |
+| `POST` | `/commodities/bulk-update-status/` | Bulk update commodity statuses |
+| `GET` | `/commodities/select-options/` | List commodities for select inputs |
+| `GET` | `/commodities/select-options/{commodityID}/` | Get a single commodity option |
+
+---
+
+## List commodities
+
+<ParamField query="query" type="string">
+  Full-text search against `name` and `description`.
+</ParamField>
+
+<ParamField query="limit" type="number" default="10">
+  Number of results per page. Between 1 and 100.
+</ParamField>
+
+<ParamField query="offset" type="number" default="0">
+  Zero-based page offset.
+</ParamField>
+
+```bash
+curl -X GET "https://api.example.com/commodities/?limit=20" \
+  -H "Authorization: Bearer {token}"
+```
+
+```json
+{
+  "count": 1,
+  "next": null,
+  "results": [
+    {
+      "id": "com_01J9ABCDEF",
+      "businessUnitId": "bu_01J9XYZ",
+      "organizationId": "org_01J9XYZ",
+      "hazardousMaterialId": null,
+      "status": "Active",
+      "name": "Frozen Chicken",
+      "description": "Whole frozen chickens in bulk cartons",
+      "minTemperature": -10,
+      "maxTemperature": 28,
+      "weightPerUnit": 40.00,
+      "linearFeetPerUnit": 2.5,
+      "maxQuantityPerShipment": 1000.0,
+      "freightClass": "Class60",
+      "loadingInstructions": "Stack no more than 4 high. Keep frozen.",
+      "stackable": false,
+      "fragile": false,
+      "version": 1,
+      "createdAt": 1700000000,
+      "updatedAt": 1700000000
+    }
+  ]
+}
+```
+
+---
+
+## Get a commodity
+
+<ParamField path="commodityID" type="string" required>
+  The commodity ID prefixed with `com_`.
+</ParamField>
+
+```bash
+curl -X GET "https://api.example.com/commodities/com_01J9ABCDEF" \
+  -H "Authorization: Bearer {token}"
+```
+
+---
+
+## Create a commodity
+
+### Request body
+
+<ParamField body="name" type="string" required>
+  Commodity name. Between 1 and 100 characters.
+</ParamField>
+
+<ParamField body="description" type="string" required>
+  Detailed description of the commodity.
+</ParamField>
+
+<ParamField body="status" type="string" required default="Active">
+  Record status. `Active` or `Inactive`.
+</ParamField>
+
+<ParamField body="hazardousMaterialId" type="string">
+  ID of the associated hazardous material record, if this commodity is classified as hazmat.
+</ParamField>
+
+<ParamField body="minTemperature" type="number">
+  Minimum required temperature in degrees Fahrenheit. Must be less than `maxTemperature`.
+</ParamField>
+
+<ParamField body="maxTemperature" type="number">
+  Maximum allowed temperature in degrees Fahrenheit.
+</ParamField>
+
+<ParamField body="weightPerUnit" type="number">
+  Weight per unit in pounds. Up to 2 decimal places.
+</ParamField>
+
+<ParamField body="linearFeetPerUnit" type="number">
+  Linear feet consumed per unit. Up to 2 decimal places.
+</ParamField>
+
+<ParamField body="maxQuantityPerShipment" type="number">
+  Maximum quantity allowed per shipment. Up to 2 decimal places.
+</ParamField>
+
+<ParamField body="freightClass" type="string">
+  NMFC freight class. See [Freight class values](#freight-class-values).
+</ParamField>
+
+<ParamField body="loadingInstructions" type="string">
+  Special handling or loading instructions.
+</ParamField>
+
+<ParamField body="stackable" type="boolean" default="false">
+  Whether units of this commodity can be stacked.
+</ParamField>
+
+<ParamField body="fragile" type="boolean" default="false">
+  Whether the commodity requires fragile handling.
+</ParamField>
+
+```bash
+curl -X POST "https://api.example.com/commodities/" \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Frozen Chicken",
+    "description": "Whole frozen chickens in bulk cartons",
+    "status": "Active",
+    "minTemperature": -10,
+    "maxTemperature": 28,
+    "weightPerUnit": 40.00,
+    "freightClass": "Class60",
+    "stackable": false,
+    "fragile": false
+  }'
+```
+
+---
+
+## Bulk update status
+
+<Note>
+  This endpoint is not available to API key authentication. It requires a user session token.
+</Note>
+
+```bash
+curl -X POST "https://api.example.com/commodities/bulk-update-status/" \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "commodityIds": ["com_01J9ABCDEF", "com_01J9GHIJKL"],
+    "status": "Inactive"
+  }'
+```
+
+---
+
+## Response fields
+
+<ResponseField name="id" type="string">
+  Unique commodity ID with `com_` prefix.
+</ResponseField>
+
+<ResponseField name="businessUnitId" type="string">
+  ID of the owning business unit.
+</ResponseField>
+
+<ResponseField name="organizationId" type="string">
+  ID of the owning organization.
+</ResponseField>
+
+<ResponseField name="hazardousMaterialId" type="string">
+  ID of the linked hazardous material, if any.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  `Active` or `Inactive`.
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Commodity name.
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Commodity description.
+</ResponseField>
+
+<ResponseField name="minTemperature" type="number">
+  Minimum temperature requirement in °F.
+</ResponseField>
+
+<ResponseField name="maxTemperature" type="number">
+  Maximum temperature limit in °F.
+</ResponseField>
+
+<ResponseField name="weightPerUnit" type="number">
+  Weight per unit in pounds.
+</ResponseField>
+
+<ResponseField name="linearFeetPerUnit" type="number">
+  Linear feet per unit.
+</ResponseField>
+
+<ResponseField name="maxQuantityPerShipment" type="number">
+  Maximum quantity per shipment.
+</ResponseField>
+
+<ResponseField name="freightClass" type="string">
+  NMFC freight class designation.
+</ResponseField>
+
+<ResponseField name="loadingInstructions" type="string">
+  Special loading or handling instructions.
+</ResponseField>
+
+<ResponseField name="stackable" type="boolean">
+  Whether units can be stacked.
+</ResponseField>
+
+<ResponseField name="fragile" type="boolean">
+  Whether the commodity requires fragile handling.
+</ResponseField>
+
+<ResponseField name="version" type="number">
+  Optimistic concurrency version number.
+</ResponseField>
+
+<ResponseField name="createdAt" type="number">
+  Creation timestamp in Unix seconds.
+</ResponseField>
+
+<ResponseField name="updatedAt" type="number">
+  Last update timestamp in Unix seconds.
+</ResponseField>
+
+<ResponseField name="hazardousMaterial" type="object">
+  Linked hazardous material object, when present.
+</ResponseField>
+
+---
+
+## Freight class values
+
+NMFC freight classes determine LTL pricing. Provide the value string exactly as shown.
+
+| Value | NMFC Class |
+|-------|-----------|
+| `Class50` | 50 |
+| `Class55` | 55 |
+| `Class60` | 60 |
+| `Class65` | 65 |
+| `Class70` | 70 |
+| `Class77_5` | 77.5 |
+| `Class85` | 85 |
+| `Class92_5` | 92.5 |
+| `Class100` | 100 |
+| `Class110` | 110 |
+| `Class125` | 125 |
+| `Class150` | 150 |
+| `Class175` | 175 |
+| `Class200` | 200 |
+| `Class250` | 250 |
+| `Class300` | 300 |
+| `Class400` | 400 |
+| `Class500` | 500 |

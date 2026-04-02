@@ -1,0 +1,208 @@
+---
+title: "Deployment Overview"
+description: "Deploy Trenova using Docker Compose on Linux or Windows Server"
+---
+
+Trenova ships as a set of Docker images coordinated by Docker Compose. You can run it in two modes:
+
+| Mode | How it works | When to use |
+|------|-------------|-------------|
+| **Production** | Pulls pre-built images from `ghcr.io` | Internet-connected servers, staging, production |
+| **Local dev** | Runs `./setup.sh` to build images locally | Development, testing, air-gapped evaluation |
+
+## Hardware requirements
+
+| Spec | Minimum | Recommended |
+|------|---------|-------------|
+| CPU | 4 cores | 8 cores |
+| RAM | 8 GB | 16 GB |
+| Storage | 50 GB SSD | 100 GB SSD |
+
+The following per-service memory limits apply by default. You can tune these in `docker-compose.yml` — see [Configuration](/deployment/configuration).
+
+| Service | Memory limit |
+|---------|-------------|
+| PostgreSQL | 2 GB |
+| Redis | 2 GB |
+| Meilisearch | 1 GB |
+| MinIO | 1 GB |
+| Temporal | 1 GB |
+| TMS API | 512 MB |
+| TMS Worker | 512 MB |
+| Caddy | 256 MB |
+
+## Software requirements
+
+| Software | Version | Notes |
+|----------|---------|-------|
+| Docker Engine | 24.0+ | Required |
+| Docker Compose | v2 | Plugin or standalone |
+| OpenSSL | Any | Used for secret generation |
+
+## Operating system support
+
+**Linux:**
+- Ubuntu 22.04 LTS or newer
+- RHEL 8+ / Rocky Linux 8+
+- Debian 12+
+- Any distribution with Docker support
+
+**Windows:**
+- Windows Server 2019 or newer
+- Windows 10/11 with WSL2 (development only)
+
+## Network ports
+
+| Port | Protocol | Purpose |
+|------|----------|---------|
+| 80 | TCP | HTTP (redirects to HTTPS) |
+| 443 | TCP | HTTPS (application access) |
+
+Outbound access is required to pull Docker images and (optionally) for Let's Encrypt ACME challenges and GitHub update checks.
+
+## Docker image sources
+
+| Image | Registry | Purpose |
+|-------|----------|---------|
+| `ghcr.io/emoss08/trenova-2/tms` | GitHub Container Registry | TMS API and Worker |
+| `ghcr.io/emoss08/trenova-2/client` | GitHub Container Registry | Web frontend (Caddy) |
+| `ghcr.io/emoss08/trenova-2/postgres` | GitHub Container Registry | PostgreSQL with PostGIS |
+| `redis/redis-stack` | Docker Hub | Redis with modules |
+| `getmeili/meilisearch` | Docker Hub | Meilisearch |
+| `quay.io/minio/minio` | Quay.io | MinIO object storage |
+| `temporalio/auto-setup` | Docker Hub | Temporal server |
+| `temporalio/ui` | Docker Hub | Temporal UI |
+
+Trenova images are tagged with semantic versions (e.g. `1.0.0`, `1.0`) and `latest`.
+
+## Quick start
+
+<Steps>
+  <Step title="Install Docker">
+    **Ubuntu / Debian:**
+
+    ```bash
+    sudo apt-get update
+    sudo apt-get install -y ca-certificates curl gnupg
+
+    sudo install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+    sudo apt-get update
+    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+    sudo usermod -aG docker $USER
+    newgrp docker
+    ```
+
+    **RHEL / Rocky Linux:**
+
+    ```bash
+    sudo dnf install -y dnf-plugins-core
+    sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+    sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+    sudo systemctl enable docker
+    sudo systemctl start docker
+    sudo usermod -aG docker $USER
+    newgrp docker
+    ```
+  </Step>
+
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/emoss08/trenova-2.git
+    cd trenova-2/deploy
+    ```
+  </Step>
+
+  <Step title="Configure environment">
+    Copy the example file and open it in your editor:
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    At a minimum, set `DOMAIN` to your hostname and replace all `change-me-*` placeholders with strong, randomly generated values. See [Configuration](/deployment/configuration) for a full variable reference.
+  </Step>
+
+  <Step title="Deploy">
+    <Tabs>
+      <Tab title="Production">
+        Pull pre-built images from GitHub Container Registry and start all services:
+
+        ```bash
+        export TRENOVA_VERSION=latest   # or a specific version, e.g. 1.0.0
+        docker compose -f docker-compose.prod.yml pull
+        docker compose -f docker-compose.prod.yml up -d
+        ```
+      </Tab>
+      <Tab title="Local dev">
+        Run the setup script, which checks prerequisites, generates credentials, builds images locally, and seeds the database:
+
+        ```bash
+        ./setup.sh
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Verify the deployment">
+    Check that all containers are running and healthy:
+
+    ```bash
+    docker compose ps
+    ```
+
+    Then confirm the API responds:
+
+    ```bash
+    curl https://your-domain/api/v1/health
+    ```
+  </Step>
+</Steps>
+
+## Default admin credentials
+
+<Warning>
+  Change the default admin password immediately after your first login.
+</Warning>
+
+| Field | Value |
+|-------|-------|
+| Email | `admin@trenova.app` |
+| Password | `admin123!` |
+
+## Access URLs
+
+| Service | URL |
+|---------|-----|
+| Application | `https://your-domain` |
+| API health | `https://your-domain/api/v1/health` |
+| Temporal UI | `https://your-domain/temporal-ui` |
+| MinIO console | `https://your-domain/minio` |
+
+## DNS / hosts file
+
+If you are using a custom hostname (not `localhost`), add both the main domain and the storage subdomain to your DNS server or local hosts file. The `storage.` subdomain is required for file uploads and downloads.
+
+```
+# Example for trenova.local
+127.0.0.1  trenova.local
+127.0.0.1  storage.trenova.local
+```
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="sliders" href="/deployment/configuration">
+    Full reference for environment variables and application settings.
+  </Card>
+  <Card title="TLS certificates" icon="lock" href="/deployment/tls-certificates">
+    Set up HTTPS with self-signed, Let's Encrypt, or enterprise CA certificates.
+  </Card>
+  <Card title="Maintenance" icon="wrench" href="/deployment/maintenance">
+    Backup, upgrade, log management, and health monitoring.
+  </Card>
+</CardGroup>

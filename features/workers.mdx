@@ -1,0 +1,170 @@
+---
+title: "Worker Management"
+description: "Manage drivers, compliance, PTO, and assignments"
+---
+
+## Overview
+
+Workers in Trenova represent anyone who operates equipment — employees on your payroll or owner-operators and contractors. Each worker record combines personal information, operational settings, a detailed compliance profile, and a PTO ledger into a single record.
+
+---
+
+## Worker record
+
+The worker record stores identity and operational data used for dispatch and compliance screening.
+
+| Field | Description |
+|---|---|
+| **First Name / Last Name** | Legal name as it appears on the CDL — both required |
+| **Status** | `Active` or `Inactive` |
+| **Type** | `Employee` or `Contractor` |
+| **Driver Type** | Operational assignment — see driver type table below |
+| **Gender** | `Male` or `Female` (required for DOT compliance records) |
+| **Fleet Code** | Assigns the worker to a fleet group |
+| **Manager** | The dispatcher or supervisor overseeing this worker |
+| **Address Line 1 / 2** | Home address |
+| **City / State / Postal Code** | US address (postal code validated as 5 or 9 digit ZIP) |
+| **Email** | Contact email |
+| **Phone Number** | E.164 format (e.g., `+12025551234`) |
+| **Emergency Contact Name / Phone** | On-file emergency contact |
+| **External ID** | Your internal HR or payroll system identifier |
+| **Can Be Assigned** | Whether this worker is eligible for dispatch |
+| **Available for Dispatch** | Real-time availability toggle |
+| **Assignment Blocked** | Reason string when the worker is blocked from assignment |
+| **Custom Fields** | Extensible key-value metadata |
+
+### Worker type
+
+| Value | Description |
+|---|---|
+| `Employee` | W-2 employee on your payroll |
+| `Contractor` | 1099 owner-operator or leased driver |
+
+### Driver type
+
+| Value | Description |
+|---|---|
+| `Local` | Day runs, home daily |
+| `Regional` | Multi-day runs within a region |
+| `OTR` | Over-the-road, extended trips |
+| `Team` | Paired with another driver for team hauls |
+
+---
+
+## Worker profile
+
+Every worker has exactly one **profile** record that holds DOT-required compliance data. The profile is created alongside the worker record and must be provided when creating a new worker.
+
+| Field | Description |
+|---|---|
+| **Date of Birth** | Required for FMCSA records |
+| **Hire Date** | Date the worker joined your organization |
+| **Termination Date** | Set when a worker leaves; optional |
+| **License Number** | CDL or state license number — required |
+| **CDL Class** | `A`, `B`, or `C` |
+| **CDL Restrictions** | Restriction codes as listed on the license |
+| **Endorsement** | CDL endorsement — see endorsement table below |
+| **License Expiry** | License expiration date — required |
+| **License State** | State that issued the CDL |
+| **Hazmat Expiry** | Required when endorsement is `H` or `X` |
+| **Medical Card Expiry** | DOT medical certificate expiration date |
+| **Medical Examiner Name** | Name of the certifying examiner |
+| **Medical Examiner NPI** | National Provider Identifier for the examiner |
+| **TWIC Card Number** | Transportation Worker Identification Credential number |
+| **TWIC Expiry** | TWIC expiration date |
+| **Compliance Status** | Overall compliance standing |
+| **Is Qualified** | Whether the worker currently meets all qualification criteria |
+| **Disqualification Reason** | Explanation when `IsQualified` is false |
+| **Last Compliance Check** | Timestamp of most recent compliance review |
+| **Last MVR Check** | Timestamp of most recent Motor Vehicle Record pull |
+| **Last Drug Test** | Timestamp of most recent drug/alcohol test |
+| **Physical Due Date** | Next DOT physical due date |
+| **MVR Due Date** | Next MVR check due date |
+| **ELD Exempt** | Whether this driver is exempt from ELD requirements |
+| **Short Haul Exempt** | Whether this driver qualifies for the short-haul exemption |
+
+### CDL endorsements
+
+| Code | Endorsement |
+|---|---|
+| `O` | None (no endorsement) |
+| `N` | Tanker vehicles |
+| `H` | Hazardous materials |
+| `X` | Tanker + Hazardous materials combined |
+| `P` | Passenger vehicles |
+| `T` | Double/Triple trailers |
+
+<Note>
+When a worker holds an `H` or `X` endorsement, the hazmat expiry date becomes mandatory. Trenova validates this at save time.
+</Note>
+
+### Compliance status
+
+| Status | Meaning |
+|---|---|
+| `Compliant` | All required credentials are current and valid |
+| `NonCompliant` | One or more required items are expired or missing |
+| `Pending` | Initial state; compliance review has not been completed |
+
+---
+
+## Worker PTO
+
+Track time-off requests and approvals using the built-in PTO ledger. Each PTO record is linked to a worker and stores:
+
+| Field | Description |
+|---|---|
+| **Start Date** | First day of the time-off period |
+| **End Date** | Last day of the time-off period |
+| **Type** | Category of leave |
+| **Status** | Approval workflow state |
+| **Notes** | Free-text notes from the worker or manager |
+
+### PTO types
+
+`Personal`, `Vacation`, `Sick`, `Holiday`, `Bereavement`, `Maternity`, `Paternity`
+
+### PTO status
+
+| Status | Meaning |
+|---|---|
+| `Requested` | Worker has submitted the request |
+| `Approved` | Manager has approved the time off |
+| `Rejected` | Request was denied |
+| `Cancelled` | Request was withdrawn |
+
+---
+
+## Equipment assignments
+
+Workers can be linked to tractors in two roles:
+
+- **Primary Worker** — the lead driver, required on every tractor record
+- **Secondary Worker** — optional co-driver or team driver
+
+When you assign a tractor to a worker, Trenova automatically checks the worker's `CanBeAssigned` flag and `AvailableForDispatch` status. If the worker is blocked, the assignment is rejected with the reason from `AssignmentBlocked`.
+
+---
+
+## Shipment move assignments
+
+Workers are assigned to individual **shipment moves** through the assignment record. Each move can have a primary and secondary worker, allowing team driving and relay scenarios without modifying the shipment itself.
+
+The assignment status tracks the worker's progress through each move: `New → InProgress → Completed / Canceled`.
+
+---
+
+<CardGroup cols={2}>
+  <Card title="Workers API" icon="code" href="/api/workers">
+    Full API reference for worker management
+  </Card>
+  <Card title="Fleet Management" icon="truck" href="/features/fleet">
+    Assign workers to tractors and fleet codes
+  </Card>
+  <Card title="Shipment Management" icon="package" href="/features/shipments">
+    How workers appear in shipment assignments
+  </Card>
+  <Card title="Hazardous Materials" icon="triangle-exclamation" href="/features/hazmat">
+    Hazmat endorsement requirements for drivers
+  </Card>
+</CardGroup>

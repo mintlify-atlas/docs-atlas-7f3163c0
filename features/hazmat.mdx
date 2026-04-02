@@ -1,0 +1,152 @@
+---
+title: "Hazardous Materials"
+description: "DOT hazmat compliance, reference data, and segregation rules"
+---
+
+## Overview
+
+Trenova provides a built-in hazardous materials catalog and enforcement engine that keeps your operations in compliance with 49 CFR DOT regulations. You maintain a library of hazmat records, define co-loading restrictions with segregation rules, and link specific commodities to hazmat designations so every shipment carrying dangerous goods is flagged and controlled automatically.
+
+---
+
+## Hazardous materials catalog
+
+The **hazardous materials catalog** is your authoritative reference for every hazardous substance your organization moves. Each record maps to a specific DOT entry and carries the information drivers, shippers, and emergency responders need.
+
+| Field | Description |
+|---|---|
+| **Code** | Short internal identifier, up to 10 characters |
+| **Name** | Common or trade name of the material, up to 100 characters — required |
+| **Description** | Detailed description — required |
+| **Status** | `Active` or `Inactive` |
+| **UN Number** | 4-digit UN/NA identification number (e.g., `1993`) |
+| **Proper Shipping Name** | DOT-required name as listed in 49 CFR Part 172 |
+| **Class** | Primary hazard class — see class table below |
+| **Packing Group** | DOT packing group indicating relative hazard level |
+| **Subsidiary Hazard Class** | Secondary hazard classification (up to 20 characters) |
+| **ERG Guide Number** | Emergency Response Guidebook section number |
+| **Label Codes** | Required label codes (up to 50 characters) |
+| **Special Provisions** | Applicable 49 CFR special provisions, comma-separated |
+| **Handling Instructions** | Specific loading, unloading, or transport instructions |
+| **Emergency Contact** | Name or organization for emergency response queries |
+| **Emergency Contact Phone** | 24-hour emergency contact phone number |
+| **Quantity Threshold** | Reportable quantity threshold (required when `IsReportableQuantity` is true) |
+| **Placard Required** | Whether DOT placarding is required |
+| **Is Reportable Quantity** | Whether releases trigger CERCLA/EPCRA reporting |
+| **Marine Pollutant** | Whether the material is classified as a marine pollutant |
+| **Inhalation Hazard** | Whether the material poses an inhalation risk |
+
+### DOT hazard classes
+
+| Class | Description |
+|---|---|
+| `HazardClass1` | Explosives (general) |
+| `HazardClass1And1` | Division 1.1 — Mass explosion hazard |
+| `HazardClass1And2` | Division 1.2 — Projection hazard |
+| `HazardClass1And3` | Division 1.3 — Fire and minor blast hazard |
+| `HazardClass1And4` | Division 1.4 — Minor explosion hazard |
+| `HazardClass1And5` | Division 1.5 — Very insensitive explosives |
+| `HazardClass1And6` | Division 1.6 — Extremely insensitive detonating substances |
+| `HazardClass2And1` | Division 2.1 — Flammable gas |
+| `HazardClass2And2` | Division 2.2 — Non-flammable, non-toxic gas |
+| `HazardClass2And3` | Division 2.3 — Toxic gas |
+| `HazardClass3` | Flammable and combustible liquids |
+| `HazardClass4And1` | Division 4.1 — Flammable solids |
+| `HazardClass4And2` | Division 4.2 — Spontaneously combustible |
+| `HazardClass4And3` | Division 4.3 — Dangerous when wet |
+| `HazardClass5And1` | Division 5.1 — Oxidizers |
+| `HazardClass5And2` | Division 5.2 — Organic peroxides |
+| `HazardClass6And1` | Division 6.1 — Toxic substances |
+| `HazardClass6And2` | Division 6.2 — Infectious substances |
+| `HazardClass7` | Radioactive materials |
+| `HazardClass8` | Corrosive materials |
+| `HazardClass9` | Miscellaneous hazardous materials |
+
+### Packing groups
+
+| Group | Hazard Level |
+|---|---|
+| `I` | Great danger |
+| `II` | Medium danger |
+| `III` | Minor danger |
+
+---
+
+## Segregation rules
+
+**Hazmat segregation rules** define which hazard classes and specific materials cannot be co-loaded on the same trailer. Trenova evaluates these rules during assignment to flag or block loads that would violate DOT segregation requirements.
+
+| Field | Description |
+|---|---|
+| **Name** | Rule name, up to 100 characters — required |
+| **Description** | Explanation of what this rule covers |
+| **Status** | `Active` or `Inactive` |
+| **Class A** | First hazard class in the pairing — required |
+| **Class B** | Second hazard class in the pairing — required |
+| **Segregation Type** | The enforcement action — see type table below |
+| **Hazmat A** | Optional: restrict the rule to a specific material within Class A |
+| **Hazmat B** | Optional: restrict the rule to a specific material within Class B |
+| **Minimum Distance** | Required separation distance (when type is `Distance`) |
+| **Distance Unit** | `FT`, `M`, `IN`, or `CM` |
+| **Has Exceptions** | Whether any exceptions to this rule apply |
+| **Exception Notes** | Required when `HasExceptions` is true (5–1,000 characters) |
+| **Reference Code** | Internal or regulatory reference code for this rule |
+| **Regulation Source** | Cite the regulation this rule implements (e.g., `49 CFR 177.848`) |
+
+### Segregation types
+
+| Type | Enforcement |
+|---|---|
+| `Prohibited` | These classes may never be loaded together — hard block |
+| `Separated` | Must be kept apart within the trailer (e.g., separated by cargo) |
+| `Distance` | Must maintain a minimum physical distance apart |
+| `Barrier` | Must be separated by a physical barrier or bulkhead |
+
+<Note>
+When `Class A` and `Class B` are the same hazard class, the rule must target two different specific material records via `HazmatAID` and `HazmatBID`. Trenova enforces this at save time to prevent ambiguous rules.
+</Note>
+
+---
+
+## Commodity-level hazmat designation
+
+You designate a commodity as hazardous by linking it to a hazardous material record in the commodity catalog. When that commodity appears on a shipment via `ShipmentCommodity`, Trenova automatically:
+
+1. Applies the hazmat flag to the shipment
+2. Triggers driver endorsement validation (drivers must hold an `H` or `X` CDL endorsement)
+3. Evaluates active segregation rules against all other commodities on the load
+4. Enforces any applicable temperature range requirements
+
+---
+
+## Temperature requirements
+
+For temperature-sensitive hazardous materials — such as certain organic peroxides or biological substances — you can specify a temperature range on the shipment itself using the `TemperatureMin` and `TemperatureMax` fields (in °F). Dispatch can use this to select appropriate refrigerated equipment types.
+
+---
+
+## Driver hazmat certification
+
+Drivers transporting hazmat must hold a valid CDL hazmat endorsement. Trenova checks the worker profile's `Endorsement` field and `HazmatExpiry` date during assignment:
+
+- Endorsement `H` — hazardous materials only
+- Endorsement `X` — hazardous materials + tanker combined
+
+Both require a non-expired `HazmatExpiry` date on the worker profile. Trenova blocks assignment if the expiry is missing or past.
+
+---
+
+<CardGroup cols={2}>
+  <Card title="Hazmat API" icon="code" href="/api/hazmat">
+    Full API reference for hazardous materials and segregation rules
+  </Card>
+  <Card title="Worker Management" icon="user" href="/features/workers">
+    CDL endorsements and hazmat certification tracking
+  </Card>
+  <Card title="Shipment Management" icon="package" href="/features/shipments">
+    Commodity designation and shipment-level hazmat controls
+  </Card>
+  <Card title="Billing & Finance" icon="dollar-sign" href="/features/billing">
+    Hazmat accessorial charges and flat-fee handling
+  </Card>
+</CardGroup>

@@ -1,0 +1,121 @@
+---
+title: "Local Development Setup"
+description: "Set up a local Trenova development environment"
+---
+
+This guide walks you through setting up Trenova locally for development and testing.
+
+## Prerequisites
+
+| Tool | Version | Purpose |
+|------|---------|---------|
+| Go | 1.26+ | TMS backend |
+| Node.js + pnpm | Latest LTS | React frontend |
+| Docker + Docker Compose | Engine 24.0+, Compose v2 | Local infrastructure |
+| Task | Latest | Task runner (Taskfile) |
+
+Install Task: https://taskfile.dev/installation/
+
+## Step 1: Start local infrastructure
+
+From the repo root, start all backing services:
+
+```bash
+docker compose -f docker-compose-local.yml up -d
+```
+
+This starts:
+
+| Service | Port | Purpose |
+|---------|------|---------|
+| PostgreSQL (PostGIS) | 5432 | Primary database |
+| Redis 8 | 6379 | Cache + JSON/stream support |
+| Redis Insight | 5540 | Redis inspection UI |
+| Meilisearch | 7700 | Full-text search |
+| MinIO | 9000, 9001 | Object storage |
+| GTC | — | CDC pipeline (Postgres → Meilisearch) |
+
+## Step 2: Set up the TMS service
+
+```bash
+cd services/tms
+
+# Full setup for new developers (migrate + seed)
+task quick-start
+
+# Or run steps individually:
+task db-migrate     # Run database migrations
+task db-seed        # Seed initial data
+```
+
+Common database commands:
+
+```bash
+task db-reset       # Drop, recreate, migrate, and seed (wipes all data)
+task db-seed env=development   # Seed for a specific environment
+```
+
+## Step 3: Run the API server
+
+```bash
+cd services/tms
+task run-watch      # API server with hot reload (via air)
+```
+
+The API starts on `http://localhost:8080` by default.
+
+## Step 4: Run the frontend
+
+```bash
+cd client
+pnpm install
+pnpm dev            # Vite dev server at http://localhost:5173
+```
+
+## Running tests
+
+<CodeGroup>
+```bash Go unit tests
+cd services/tms
+go test -v -run TestFunctionName ./path/to/package
+task test
+```
+
+```bash Go integration tests
+cd services/tms
+task test-integration   # Requires Docker
+```
+
+```bash Frontend tests
+cd client
+pnpm test              # Run vitest once
+pnpm test:watch        # Watch mode
+pnpm vitest run src/path/to/file.test.ts   # Single file
+```
+</CodeGroup>
+
+## Linting
+
+```bash
+# Go
+cd services/tms && task lint    # golangci-lint
+
+# Frontend
+cd client && pnpm lint          # oxlint
+cd client && pnpm lint:fix      # oxlint --fix
+```
+
+## Architecture notes
+
+Trenova uses a hexagonal architecture (Ports & Adapters). Keep this in mind when contributing:
+
+- **Domain logic** lives in `services/tms/internal/core/` — no infrastructure dependencies allowed here
+- **Infrastructure adapters** (database, cache, storage) live in `services/tms/internal/infrastructure/`
+- **HTTP handlers** live in `services/tms/internal/api/handlers/`
+- Use **Bun ORM** for all database operations
+- Use **sonic** for JSON — `encoding/json` is forbidden by the linter
+- Use **PULID** for all entity IDs (`pulid.MustNew("prefix_")`)
+
+<Tip>
+  Read `CLAUDE.md` in the repo root for additional architecture context and coding conventions.
+</Tip>

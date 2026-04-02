@@ -1,0 +1,262 @@
+---
+title: "TLS Certificates"
+description: "Configure HTTPS with self-signed, Let's Encrypt, or enterprise CA certificates"
+---
+
+Trenova uses [Caddy](https://caddyserver.com) as its reverse proxy. Caddy handles all TLS termination, so you do not need to manage certificates for the application itself — only for Caddy.
+
+Three certificate strategies are available:
+
+| Strategy | When to use |
+|----------|-------------|
+| Self-signed via Caddy's internal CA | Internal / dev deployments where you control client machines |
+| Let's Encrypt (ACME) | Internet-facing servers with a public domain |
+| Enterprise CA | Corporate environments with an existing PKI |
+
+## Self-signed certificates (development / internal)
+
+The default `Caddyfile` uses `tls internal`, which tells Caddy to act as its own certificate authority:
+
+```
+{$DOMAIN:trenova.app} {
+    tls internal
+    ...
+}
+
+storage.{$DOMAIN:trenova.app} {
+    tls internal
+    reverse_proxy minio:9000
+}
+```
+
+Caddy generates a root CA on first start and signs all server certificates from it. The certificates are valid within the container network but browsers will show a warning until you install the root CA on client machines.
+
+### Extract the root CA certificate
+
+```bash
+# Copy the root CA from the Caddy container
+docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt ./caddy-root-ca.crt
+
+# Verify the certificate contents
+openssl x509 -in caddy-root-ca.crt -text -noout
+```
+
+### Install the root CA on client machines
+
+<Tabs>
+  <Tab title="Windows">
+    **Command line (recommended for automation):**
+
+    ```powershell
+    # Import for the current user only
+    certutil -addstore -user Root C:\path\to\caddy-root-ca.crt
+
+    # Import for all users (requires Administrator)
+    certutil -addstore Root C:\path\to\caddy-root-ca.crt
+    ```
+
+    **GUI (Certificate Import Wizard):**
+
+    1. Double-click `caddy-root-ca.crt`.
+    2. Click **Install Certificate...**.
+    3. Select **Local Machine** (all users) or **Current User**.
+    4. Select **Place all certificates in the following store**.
+    5. Click **Browse** and choose **Trusted Root Certification Authorities**.
+    6. Click **Next**, then **Finish**.
+
+    **Enterprise distribution via Group Policy:**
+
+    To deploy the certificate to all machines in an Active Directory domain:
+
+    1. Open **Group Policy Management Console**.
+    2. Create or edit a GPO linked to your target OU.
+    3. Navigate to: `Computer Configuration → Windows Settings → Security Settings → Public Key Policies → Trusted Root Certification Authorities`.
+    4. Right-click → **Import** and select `caddy-root-ca.crt`.
+    5. The certificate distributes to all computers in the OU on the next Group Policy refresh.
+  </Tab>
+  <Tab title="macOS">
+    **Command line:**
+
+    ```bash
+    # Requires admin password
+    sudo security add-trusted-cert -d -r trustRoot \
+      -k /Library/Keychains/System.keychain caddy-root-ca.crt
+    ```
+
+    **Keychain Access (GUI):**
+
+    1. Open **Keychain Access**.
+    2. Go to **File → Import Items** and select `caddy-root-ca.crt`.
+    3. Double-click the imported certificate.
+    4. Expand **Trust**.
+    5. Set **When using this certificate** to **Always Trust**.
+    6. Close the panel and enter your password when prompted.
+  </Tab>
+  <Tab title="Linux (Debian / Ubuntu)">
+    ```bash
+    sudo cp caddy-root-ca.crt /usr/local/share/ca-certificates/trenova-ca.crt
+    sudo update-ca-certificates
+    ```
+  </Tab>
+  <Tab title="Linux (RHEL / Rocky / Fedora)">
+    ```bash
+    sudo cp caddy-root-ca.crt /etc/pki/ca-trust/source/anchors/trenova-ca.crt
+    sudo update-ca-trust
+    ```
+  </Tab>
+  <Tab title="Firefox">
+    Firefox maintains its own certificate store independent of the OS:
+
+    1. Open **Firefox Settings**.
+    2. Search for **certificates**.
+    3. Click **View Certificates**.
+    4. Go to the **Authorities** tab.
+    5. Click **Import** and select `caddy-root-ca.crt`.
+    6. Check **Trust this CA to identify websites**.
+    7. Click **OK**.
+  </Tab>
+</Tabs>
+
+## Let's Encrypt / ACME (production)
+
+For internet-facing deployments, remove `tls internal` from the Caddyfile to enable automatic certificate issuance from Let's Encrypt:
+
+```
+{$DOMAIN} {
+    # No 'tls internal' — Caddy uses ACME automatically
+    ...
+}
+```
+
+**Requirements:**
+
+- Your domain must resolve to the server's public IP address.
+- Port 80 must be reachable from the internet for HTTP-01 challenges.
+- Let's Encrypt sends expiry notifications to the ACME account email.
+
+**DNS-01 challenge (servers behind NAT / firewall):**
+
+If port 80 is not publicly accessible, use a DNS-01 challenge instead. The example below uses Cloudflare:
+
+```
+{$DOMAIN} {
+    tls {
+        dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+    }
+    ...
+}
+```
+
+Add the API token to the Caddy service environment in `docker-compose.yml`:
+
+```yaml
+caddy:
+  environment:
+    CLOUDFLARE_API_TOKEN: your-api-token
+```
+
+## Custom certificates (enterprise CA)
+
+If your organisation has its own PKI, mount the certificates into the Caddy container and point the Caddyfile at them.
+
+**Step 1: Prepare your certificate files**
+
+```
+certs/
+├── trenova.crt     # Server certificate with full chain
+└── trenova.key     # Private key
+```
+
+**Step 2: Mount the certificates in `docker-compose.yml`**
+
+```yaml
+caddy:
+  volumes:
+    - ./certs/trenova.crt:/etc/caddy/certs/trenova.crt:ro
+    - ./certs/trenova.key:/etc/caddy/certs/trenova.key:ro
+```
+
+**Step 3: Update the Caddyfile**
+
+```
+{$DOMAIN} {
+    tls /etc/caddy/certs/trenova.crt /etc/caddy/certs/trenova.key
+    ...
+}
+```
+
+Restart Caddy after making changes:
+
+```bash
+docker compose up -d --force-recreate caddy
+```
+
+## Network and VPN considerations
+
+### Internal-only deployment (no VPN)
+
+For deployments accessible only within a corporate LAN, configure DNS to point both the main domain and the `storage.` subdomain at the server:
+
+```
+# Internal DNS server
+trenova.corp.local          IN  A  192.168.1.100
+storage.trenova.corp.local  IN  A  192.168.1.100
+```
+
+Or add host file entries on each client machine:
+
+```
+# Windows: C:\Windows\System32\drivers\etc\hosts
+# Linux / macOS: /etc/hosts
+192.168.1.100  trenova.corp.local
+192.168.1.100  storage.trenova.corp.local
+```
+
+<Warning>
+  The `storage.` subdomain is required for file uploads and downloads. Both the main domain and the storage subdomain must resolve to the same server.
+</Warning>
+
+Restrict access with firewall rules to allow only your internal subnet:
+
+```bash
+sudo ufw allow from 192.168.1.0/24 to any port 80
+sudo ufw allow from 192.168.1.0/24 to any port 443
+```
+
+### VPN deployments
+
+**Split-tunnel VPN:** only traffic to corporate resources routes through the VPN. Ensure the Trenova server IP and subnet are included in the split-tunnel routes, and that DNS resolves the hostname correctly when the VPN is connected.
+
+**Full-tunnel VPN:** all traffic routes through the VPN. Configuration is simpler, but non-corporate traffic incurs higher latency.
+
+In both cases, configure the VPN to push DNS settings so that clients resolve the Trenova hostname correctly, or deploy hosts-file entries through your MDM solution.
+
+### Air-gapped deployment
+
+For environments without internet access:
+
+```bash
+# On an internet-connected machine, save all images to a tar archive
+docker compose pull
+docker save -o trenova-images.tar \
+  $(docker compose config --images | tr '\n' ' ')
+```
+
+Transfer `trenova-images.tar` to the air-gapped machine via USB drive or secure file transfer, then load the images:
+
+```bash
+docker load -i trenova-images.tar
+```
+
+<Note>
+  Air-gapped deployments cannot use Let's Encrypt. Use self-signed certificates or enterprise CA certificates, and set `offlineMode: true` in `config.prod.yaml` to disable update checks.
+</Note>
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="sliders" href="/deployment/configuration">
+    Environment variables and application settings.
+  </Card>
+  <Card title="Maintenance" icon="wrench" href="/deployment/maintenance">
+    Backup, upgrade, and monitor your deployment.
+  </Card>
+</CardGroup>

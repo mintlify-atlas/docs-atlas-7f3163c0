@@ -1,0 +1,133 @@
+---
+title: "Fleet Management"
+description: "Manage tractors, trailers, equipment types, and fleet codes"
+---
+
+## Overview
+
+Fleet management in Trenova covers the complete lifecycle of your equipment — from initial setup through day-to-day dispatch availability. You can track tractors and trailers, organize equipment into fleet codes, and classify equipment by type and manufacturer.
+
+---
+
+## Tractors
+
+A **tractor** record represents a single power unit in your fleet. Each tractor must be assigned a primary worker (driver) and an equipment type before it can be dispatched.
+
+| Field | Description |
+|---|---|
+| **Code** | Short identifier for the unit (up to 50 characters), required |
+| **Status** | Current availability — see status table below |
+| **Make** | Manufacturer name (e.g., Kenworth, Peterbilt) |
+| **Model** | Model designation (e.g., T680, 579) |
+| **Year** | Model year (1900–2099) |
+| **VIN** | Vehicle Identification Number (validated format) |
+| **License Plate Number** | State-issued plate |
+| **Registration Number** | Registration document number |
+| **Registration Expiry** | Registration expiration date |
+| **Equipment Type** | Links to an equipment type definition — required |
+| **Equipment Manufacturer** | Links to a manufacturer record — required |
+| **Fleet Code** | Assigns this tractor to a fleet group (optional) |
+| **State** | Registration state |
+| **Primary Worker** | The driver primarily assigned to this unit — required |
+| **Secondary Worker** | Optional co-driver or team driver |
+| **Custom Fields** | Extensible key-value metadata for your organization |
+
+### Equipment status values
+
+| Status | Meaning |
+|---|---|
+| `Available` | Ready for dispatch |
+| `OutOfService` | Removed from service (inspection, extended downtime, etc.) |
+| `AtMaintenance` | Currently in a repair facility |
+| `Sold` | Unit has been sold and is no longer in the fleet |
+
+<Note>
+Tractors are searchable by code, VIN, and license plate number. The search index is updated automatically on save.
+</Note>
+
+---
+
+## Trailers
+
+A **trailer** record represents a single piece of trailing equipment. Trailers share most fields with tractors but do not require a primary worker assignment.
+
+| Field | Description |
+|---|---|
+| **Code** | Short identifier for the unit (up to 50 characters), required |
+| **Status** | Current availability: `Available`, `OutOfService`, `AtMaintenance`, or `Sold` |
+| **Make** | Manufacturer name |
+| **Model** | Model designation |
+| **Year** | Model year |
+| **VIN** | Vehicle Identification Number (validated format) |
+| **License Plate Number** | State-issued plate |
+| **Registration Number** | Registration document number |
+| **Registration Expiry** | Registration expiration date |
+| **Max Load Weight** | Maximum payload capacity (lbs) |
+| **Last Inspection Date** | Date of most recent DOT inspection |
+| **Equipment Type** | Links to an equipment type definition — required |
+| **Equipment Manufacturer** | Links to a manufacturer record — required |
+| **Fleet Code** | Assigns this trailer to a fleet group (optional) |
+| **Registration State** | State where the trailer is registered |
+| **Last Known Location** | Automatically populated from dispatch activity |
+| **Custom Fields** | Extensible key-value metadata for your organization |
+
+<Tip>
+Use the last known location field to quickly identify where a trailer is without requiring GPS integration. Trenova updates this field automatically as stops are completed.
+</Tip>
+
+---
+
+## Equipment types
+
+**Equipment types** categorize your tractors and trailers into standardized classes. When creating a shipment, you specify the required tractor type and trailer type so dispatch can match the right equipment.
+
+Equipment types are shared across both tractors and trailers — the type itself defines whether it applies to a power unit or trailing equipment.
+
+Common examples:
+- `53' Dry Van` (trailer)
+- `Flatbed` (trailer)
+- `Reefer` (trailer)
+- `Day Cab` (tractor)
+- `Sleeper` (tractor)
+
+---
+
+## Equipment manufacturers
+
+**Equipment manufacturers** are a reference catalog for tracking the make and model data associated with tractors and trailers. Every tractor and trailer record requires a manufacturer reference. Centralizing manufacturer data keeps your equipment records consistent and enables accurate filtering and reporting.
+
+---
+
+## Fleet codes
+
+**Fleet codes** are the primary grouping mechanism for organizing your fleet. Use fleet codes to segment equipment and drivers by region, terminal, customer account, or operational mode.
+
+| Field | Description |
+|---|---|
+| **Code** | Short alphanumeric identifier (up to 10 characters), required |
+| **Status** | `Active` or `Inactive` |
+| **Description** | Free-text description of this fleet group |
+| **Color** | Hex color code for UI display (e.g., `#FF5733`) |
+| **Manager** | The user responsible for this fleet group — required |
+| **Revenue Goal** | Target revenue for performance tracking |
+| **Deadhead Goal** | Target deadhead miles goal |
+| **Mileage Goal** | Target total mileage goal |
+
+Fleet codes can be assigned to both tractors and workers, making it easy to keep equipment and driver rosters aligned within the same operational group.
+
+---
+
+<CardGroup cols={2}>
+  <Card title="Tractors API" icon="code" href="/api/tractors">
+    Full API reference for tractor management
+  </Card>
+  <Card title="Trailers API" icon="code" href="/api/trailers">
+    Full API reference for trailer management
+  </Card>
+  <Card title="Fleet Codes API" icon="code" href="/api/fleet-codes">
+    API reference for fleet code configuration
+  </Card>
+  <Card title="Worker Management" icon="user" href="/features/workers">
+    Assign workers to tractors and fleet codes
+  </Card>
+</CardGroup>

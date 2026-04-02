@@ -1,0 +1,391 @@
+---
+title: "Trailers API"
+description: "Manage trailer records in your fleet"
+---
+
+Trailers are the non-powered equipment units pulled by tractors. Each trailer record captures identification details, registration, inspection dates, load capacity, and fleet grouping. You can create, read, update, and bulk-update trailer records through this API.
+
+## Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/v1/trailers/` | List trailers |
+| `GET` | `/api/v1/trailers/:trailerID/` | Get a single trailer |
+| `POST` | `/api/v1/trailers/` | Create a trailer |
+| `PUT` | `/api/v1/trailers/:trailerID/` | Replace a trailer record |
+| `PATCH` | `/api/v1/trailers/:trailerID/` | Partially update a trailer record |
+| `POST` | `/api/v1/trailers/bulk-update-status/` | Update the status of multiple trailers |
+| `POST` | `/api/v1/trailers/:trailerID/locate/` | Record the last known location of a trailer |
+| `GET` | `/api/v1/trailers/select-options/` | List trailers for select/autocomplete inputs |
+
+---
+
+## GET /api/v1/trailers/
+
+Returns a paginated list of trailers for the authenticated organization.
+
+### Query parameters
+
+<ParamField query="query" type="string">
+  Full-text search across `code`, `vin`, `licensePlateNumber`, and `registrationNumber`.
+</ParamField>
+
+<ParamField query="status" type="string">
+  Filter by equipment status. Must be one of the [status values](#status-values).
+</ParamField>
+
+<ParamField query="includeEquipmentDetails" type="boolean">
+  When `true`, expands `equipmentType` and `equipmentManufacturer` relations.
+</ParamField>
+
+<ParamField query="includeFleetDetails" type="boolean">
+  When `true`, expands the `fleetCode` relation.
+</ParamField>
+
+<ParamField query="limit" type="integer">
+  Number of records per page. Min `1`, max `100`. Defaults to `10`.
+</ParamField>
+
+<ParamField query="offset" type="integer">
+  Zero-based page offset. Defaults to `0`.
+</ParamField>
+
+### Example response
+
+```json
+{
+  "count": 1,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": "tr_01j9z...",
+      "code": "TRL-220",
+      "status": "Available",
+      "make": "Great Dane",
+      "model": "Freedom",
+      "year": 2021,
+      "vin": "1GRAA0629KB105432",
+      "licensePlateNumber": "TX-TRL220",
+      "registrationNumber": "REG-9988",
+      "maxLoadWeight": 45000,
+      "equipmentTypeId": "et_01j9z...",
+      "equipmentManufacturerId": "em_02j9z...",
+      "fleetCodeId": "fc_01j9z...",
+      "version": 1,
+      "createdAt": 1712000000,
+      "updatedAt": 1712000000
+    }
+  ]
+}
+```
+
+---
+
+## GET /api/v1/trailers/:trailerID/
+
+Returns a single trailer by ID.
+
+### Path parameters
+
+<ParamField path="trailerID" type="string" required>
+  The trailer ID (prefixed `tr_`).
+</ParamField>
+
+---
+
+## POST /api/v1/trailers/
+
+Creates a new trailer record. Returns `201 Created`.
+
+### Request body
+
+<ParamField body="code" type="string" required>
+  Internal unit code or number (e.g., `TRL-220`). 1–50 characters.
+</ParamField>
+
+<ParamField body="equipmentTypeId" type="string" required>
+  ID of the equipment type that classifies this trailer.
+</ParamField>
+
+<ParamField body="equipmentManufacturerId" type="string" required>
+  ID of the equipment manufacturer.
+</ParamField>
+
+<ParamField body="status" type="string">
+  Equipment status. Defaults to `Available`. See [status values](#status-values).
+</ParamField>
+
+<ParamField body="make" type="string">
+  Manufacturer make (e.g., `Great Dane`). 1–50 characters.
+</ParamField>
+
+<ParamField body="model" type="string">
+  Trailer model (e.g., `Freedom`). 1–50 characters.
+</ParamField>
+
+<ParamField body="year" type="integer">
+  Model year. Must be between `1900` and `2099`.
+</ParamField>
+
+<ParamField body="vin" type="string">
+  Vehicle Identification Number. Must conform to VIN format if provided.
+</ParamField>
+
+<ParamField body="licensePlateNumber" type="string">
+  License plate number. Max 50 characters.
+</ParamField>
+
+<ParamField body="registrationNumber" type="string">
+  Registration number. Max 50 characters.
+</ParamField>
+
+<ParamField body="registrationExpiry" type="integer">
+  Registration expiration date as a Unix epoch timestamp.
+</ParamField>
+
+<ParamField body="registrationStateId" type="string">
+  ID of the US state where the trailer is registered.
+</ParamField>
+
+<ParamField body="maxLoadWeight" type="integer">
+  Maximum payload weight in pounds.
+</ParamField>
+
+<ParamField body="lastInspectionDate" type="integer">
+  Date of the last DOT inspection as a Unix epoch timestamp.
+</ParamField>
+
+<ParamField body="fleetCodeId" type="string">
+  ID of the fleet code group this trailer belongs to.
+</ParamField>
+
+### Example request
+
+```bash
+curl -X POST https://api.trenova.app/api/v1/trailers/ \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code": "TRL-220",
+    "equipmentTypeId": "et_01j9z...",
+    "equipmentManufacturerId": "em_02j9z...",
+    "status": "Available",
+    "make": "Great Dane",
+    "model": "Freedom",
+    "year": 2021,
+    "vin": "1GRAA0629KB105432",
+    "licensePlateNumber": "TX-TRL220",
+    "maxLoadWeight": 45000,
+    "fleetCodeId": "fc_01j9z..."
+  }'
+```
+
+### Example response
+
+```json
+{
+  "id": "tr_01j9z...",
+  "code": "TRL-220",
+  "status": "Available",
+  "make": "Great Dane",
+  "model": "Freedom",
+  "year": 2021,
+  "vin": "1GRAA0629KB105432",
+  "licensePlateNumber": "TX-TRL220",
+  "registrationNumber": null,
+  "registrationExpiry": null,
+  "registrationStateId": null,
+  "maxLoadWeight": 45000,
+  "lastInspectionDate": null,
+  "equipmentTypeId": "et_01j9z...",
+  "equipmentManufacturerId": "em_02j9z...",
+  "fleetCodeId": "fc_01j9z...",
+  "businessUnitId": "bu_01j9z...",
+  "organizationId": "org_01j9z...",
+  "version": 1,
+  "createdAt": 1712000000,
+  "updatedAt": 1712000000
+}
+```
+
+---
+
+## PUT /api/v1/trailers/:trailerID/
+
+Replaces all fields on an existing trailer record.
+
+### Path parameters
+
+<ParamField path="trailerID" type="string" required>
+  The trailer ID to update.
+</ParamField>
+
+---
+
+## PATCH /api/v1/trailers/:trailerID/
+
+Partially updates a trailer. Only the fields included in the request body are changed.
+
+### Path parameters
+
+<ParamField path="trailerID" type="string" required>
+  The trailer ID to patch.
+</ParamField>
+
+---
+
+## POST /api/v1/trailers/bulk-update-status/
+
+Updates the status of multiple trailers at once. Not available to API key authentication — requires a user session.
+
+### Request body
+
+<ParamField body="trailerIds" type="array" required>
+  Array of trailer IDs (prefixed `tr_`) to update.
+</ParamField>
+
+<ParamField body="status" type="string" required>
+  The new status to apply. Must be a valid [status value](#status-values).
+</ParamField>
+
+### Example request
+
+```bash
+curl -X POST https://api.trenova.app/api/v1/trailers/bulk-update-status/ \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "trailerIds": ["tr_01j9z...", "tr_02j9z..."],
+    "status": "AtMaintenance"
+  }'
+```
+
+---
+
+## POST /api/v1/trailers/:trailerID/locate/
+
+Records the last known location of a trailer. Useful for yard management or when a trailer is dropped at a customer facility.
+
+### Path parameters
+
+<ParamField path="trailerID" type="string" required>
+  The trailer ID to locate.
+</ParamField>
+
+### Request body
+
+<ParamField body="locationId" type="string" required>
+  ID of the location where the trailer is currently parked or dropped.
+</ParamField>
+
+---
+
+## Response fields
+
+<ResponseField name="id" type="string">
+  Unique trailer identifier, prefixed `tr_`.
+</ResponseField>
+
+<ResponseField name="businessUnitId" type="string">
+  ID of the business unit that owns this trailer.
+</ResponseField>
+
+<ResponseField name="organizationId" type="string">
+  ID of the organization that owns this trailer.
+</ResponseField>
+
+<ResponseField name="code" type="string">
+  Internal unit identifier code.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current equipment status. See [status values](#status-values).
+</ResponseField>
+
+<ResponseField name="make" type="string">
+  Manufacturer make.
+</ResponseField>
+
+<ResponseField name="model" type="string">
+  Trailer model.
+</ResponseField>
+
+<ResponseField name="year" type="integer">
+  Model year.
+</ResponseField>
+
+<ResponseField name="vin" type="string">
+  Vehicle Identification Number.
+</ResponseField>
+
+<ResponseField name="licensePlateNumber" type="string">
+  License plate number.
+</ResponseField>
+
+<ResponseField name="registrationNumber" type="string">
+  Vehicle registration number.
+</ResponseField>
+
+<ResponseField name="registrationExpiry" type="integer">
+  Registration expiration date as a Unix epoch timestamp.
+</ResponseField>
+
+<ResponseField name="registrationStateId" type="string">
+  ID of the US state where the trailer is registered.
+</ResponseField>
+
+<ResponseField name="maxLoadWeight" type="integer">
+  Maximum payload weight in pounds.
+</ResponseField>
+
+<ResponseField name="lastInspectionDate" type="integer">
+  Date of the last DOT inspection as a Unix epoch timestamp. Null if not recorded.
+</ResponseField>
+
+<ResponseField name="equipmentTypeId" type="string">
+  ID of the equipment type.
+</ResponseField>
+
+<ResponseField name="equipmentManufacturerId" type="string">
+  ID of the equipment manufacturer.
+</ResponseField>
+
+<ResponseField name="fleetCodeId" type="string">
+  ID of the fleet code group. Null if not assigned.
+</ResponseField>
+
+<ResponseField name="lastKnownLocationId" type="string">
+  ID of the location where the trailer was last recorded. Populated by the `locate` action.
+</ResponseField>
+
+<ResponseField name="lastKnownLocationName" type="string">
+  Name of the last known location. Populated by the `locate` action.
+</ResponseField>
+
+<ResponseField name="customFields" type="object">
+  Key/value map of custom field values defined by your organization.
+</ResponseField>
+
+<ResponseField name="version" type="integer">
+  Optimistic concurrency version.
+</ResponseField>
+
+<ResponseField name="createdAt" type="integer">
+  Unix epoch timestamp of record creation.
+</ResponseField>
+
+<ResponseField name="updatedAt" type="integer">
+  Unix epoch timestamp of last update.
+</ResponseField>
+
+---
+
+## Status values
+
+| Value | Description |
+|-------|-------------|
+| `Available` | The trailer is available for dispatch. |
+| `OutOfService` | The trailer is not available (e.g., failed inspection). |
+| `AtMaintenance` | The trailer is currently undergoing maintenance. |
+| `Sold` | The trailer has been sold and is no longer in service. |

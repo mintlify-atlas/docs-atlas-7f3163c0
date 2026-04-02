@@ -1,0 +1,234 @@
+---
+title: "Service Types API"
+description: "Manage shipment service type codes"
+---
+
+Service types are short reference codes that classify the level or kind of service applied to a shipment (for example, standard ground, expedited, team driver, or white-glove). Each record stores a code, an optional description, and a color used for visual identification in the dispatch UI.
+
+## Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/service-types/` | List service types |
+| `GET` | `/service-types/{serviceTypeID}` | Get a service type |
+| `POST` | `/service-types/` | Create a service type |
+| `PUT` | `/service-types/{serviceTypeID}/` | Replace a service type |
+| `PATCH` | `/service-types/{serviceTypeID}/` | Partially update a service type |
+| `POST` | `/service-types/bulk-update-status/` | Bulk update service type statuses |
+| `GET` | `/service-types/select-options/` | List for select inputs |
+| `GET` | `/service-types/select-options/{serviceTypeID}/` | Get a single option |
+
+---
+
+## List service types
+
+<ParamField query="query" type="string">
+  Full-text search against `code` and `description`.
+</ParamField>
+
+<ParamField query="limit" type="number" default="10">
+  Number of results per page. Between 1 and 100.
+</ParamField>
+
+<ParamField query="offset" type="number" default="0">
+  Zero-based page offset.
+</ParamField>
+
+```bash
+curl -X GET "https://api.example.com/service-types/?limit=20" \
+  -H "Authorization: Bearer {token}"
+```
+
+```json
+{
+  "count": 2,
+  "next": null,
+  "results": [
+    {
+      "id": "st_01J9ABCDEF",
+      "businessUnitId": "bu_01J9XYZ",
+      "organizationId": "org_01J9XYZ",
+      "status": "Active",
+      "code": "STD",
+      "description": "Standard ground service",
+      "color": "#3B82F6",
+      "version": 1,
+      "createdAt": 1700000000,
+      "updatedAt": 1700000000
+    },
+    {
+      "id": "st_01J9GHIJKL",
+      "businessUnitId": "bu_01J9XYZ",
+      "organizationId": "org_01J9XYZ",
+      "status": "Active",
+      "code": "EXP",
+      "description": "Expedited service — guaranteed next-day delivery",
+      "color": "#EF4444",
+      "version": 1,
+      "createdAt": 1700000000,
+      "updatedAt": 1700000000
+    }
+  ]
+}
+```
+
+---
+
+## Get a service type
+
+<ParamField path="serviceTypeID" type="string" required>
+  The service type ID prefixed with `st_`.
+</ParamField>
+
+```bash
+curl -X GET "https://api.example.com/service-types/st_01J9ABCDEF" \
+  -H "Authorization: Bearer {token}"
+```
+
+---
+
+## Create a service type
+
+### Request body
+
+<ParamField body="code" type="string" required>
+  Unique service type code. Up to 100 characters.
+</ParamField>
+
+<ParamField body="status" type="string" required default="Active">
+  Record status. `Active` or `Inactive`.
+</ParamField>
+
+<ParamField body="description" type="string">
+  Human-readable description of the service.
+</ParamField>
+
+<ParamField body="color" type="string">
+  Hex color code for UI display (e.g., `#3B82F6`). Must be a valid CSS hex color.
+</ParamField>
+
+```bash
+curl -X POST "https://api.example.com/service-types/" \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code": "STD",
+    "status": "Active",
+    "description": "Standard ground service",
+    "color": "#3B82F6"
+  }'
+```
+
+---
+
+## Replace a service type
+
+Replaces all fields of an existing record. Omitted fields revert to their default values.
+
+<ParamField path="serviceTypeID" type="string" required>
+  The service type ID prefixed with `st_`.
+</ParamField>
+
+```bash
+curl -X PUT "https://api.example.com/service-types/st_01J9ABCDEF/" \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code": "STD",
+    "status": "Active",
+    "description": "Standard ground — updated description",
+    "color": "#3B82F6"
+  }'
+```
+
+---
+
+## Partially update a service type
+
+Send only the fields you want to change.
+
+<ParamField path="serviceTypeID" type="string" required>
+  The service type ID prefixed with `st_`.
+</ParamField>
+
+```bash
+curl -X PATCH "https://api.example.com/service-types/st_01J9ABCDEF/" \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "color": "#10B981"
+  }'
+```
+
+---
+
+## Bulk update status
+
+<Note>
+  This endpoint is not available to API key authentication. It requires a user session token.
+</Note>
+
+```bash
+curl -X POST "https://api.example.com/service-types/bulk-update-status/" \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "serviceTypeIds": ["st_01J9ABCDEF", "st_01J9GHIJKL"],
+    "status": "Inactive"
+  }'
+```
+
+---
+
+## Select options
+
+The select-options endpoints return a lightweight list suitable for populating dropdowns. You can pass an optional `classes` query parameter to filter results by code prefix.
+
+```bash
+curl -X GET "https://api.example.com/service-types/select-options/?query=exp" \
+  -H "Authorization: Bearer {token}"
+```
+
+---
+
+## Response fields
+
+<ResponseField name="id" type="string">
+  Unique service type ID with `st_` prefix.
+</ResponseField>
+
+<ResponseField name="businessUnitId" type="string">
+  ID of the owning business unit.
+</ResponseField>
+
+<ResponseField name="organizationId" type="string">
+  ID of the owning organization.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  `Active` or `Inactive`.
+</ResponseField>
+
+<ResponseField name="code" type="string">
+  Short service type code.
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Human-readable description.
+</ResponseField>
+
+<ResponseField name="color" type="string">
+  Hex color code for UI display.
+</ResponseField>
+
+<ResponseField name="version" type="number">
+  Optimistic concurrency version number.
+</ResponseField>
+
+<ResponseField name="createdAt" type="number">
+  Creation timestamp in Unix seconds.
+</ResponseField>
+
+<ResponseField name="updatedAt" type="number">
+  Last update timestamp in Unix seconds.
+</ResponseField>

@@ -1,0 +1,263 @@
+---
+title: "Assignments API"
+description: "Assign tractors, trailers, and workers to shipment moves"
+---
+
+An assignment links a shipment move to the driver(s) and equipment that will execute it. Each move can have at most one active assignment. Use the Assignments API to create, replace, and remove assignments, and to verify that workers meet compliance requirements before dispatch.
+
+## Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/v1/assignments/` | List all assignments |
+| `GET` | `/api/v1/assignments/:assignmentID/` | Get a single assignment |
+| `POST` | `/api/v1/shipment-moves/:moveID/assignment/` | Assign a move |
+| `PUT` | `/api/v1/shipment-moves/:moveID/assignment/` | Reassign a move |
+| `DELETE` | `/api/v1/shipment-moves/:moveID/assignment/` | Unassign a move |
+| `POST` | `/api/v1/assignments/check-worker-compliance/` | Validate worker compliance before assigning |
+
+---
+
+## GET /api/v1/assignments/
+
+Returns a paginated list of assignments for the authenticated organization.
+
+### Query parameters
+
+<ParamField query="query" type="string">
+  Full-text search query.
+</ParamField>
+
+<ParamField query="limit" type="integer">
+  Number of records per page. Min `1`, max `100`. Defaults to `10`.
+</ParamField>
+
+<ParamField query="offset" type="integer">
+  Zero-based page offset. Defaults to `0`.
+</ParamField>
+
+### Example response
+
+```json
+{
+  "count": 1,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": "asn_01j9z...",
+      "shipmentMoveId": "sm_01j9z...",
+      "primaryWorkerId": "wrk_01j9z...",
+      "tractorId": "trac_01j9z...",
+      "trailerId": "tr_01j9z...",
+      "secondaryWorkerId": null,
+      "status": "New",
+      "version": 1,
+      "createdAt": 1712000000,
+      "updatedAt": 1712000000
+    }
+  ]
+}
+```
+
+---
+
+## GET /api/v1/assignments/:assignmentID/
+
+Returns a single assignment by ID.
+
+### Path parameters
+
+<ParamField path="assignmentID" type="string" required>
+  The assignment ID (prefixed `asn_`).
+</ParamField>
+
+---
+
+## POST /api/v1/shipment-moves/:moveID/assignment/
+
+Creates an assignment for the specified move. Transitions the move's status to `Assigned`. Returns `201 Created`.
+
+### Path parameters
+
+<ParamField path="moveID" type="string" required>
+  The move ID to assign (prefixed `sm_`).
+</ParamField>
+
+### Request body
+
+<ParamField body="primaryWorkerId" type="string" required>
+  ID of the primary driver to assign.
+</ParamField>
+
+<ParamField body="tractorId" type="string" required>
+  ID of the tractor to assign.
+</ParamField>
+
+<ParamField body="trailerId" type="string">
+  ID of the trailer to assign. Optional for bobtail moves.
+</ParamField>
+
+<ParamField body="secondaryWorkerId" type="string">
+  ID of a co-driver or second worker for this move.
+</ParamField>
+
+### Example request
+
+```bash
+curl -X POST https://api.trenova.app/api/v1/shipment-moves/sm_01j9z.../assignment/ \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "primaryWorkerId": "wrk_01j9z...",
+    "tractorId": "trac_01j9z...",
+    "trailerId": "tr_01j9z..."
+  }'
+```
+
+### Example response
+
+```json
+{
+  "id": "asn_01j9z...",
+  "shipmentMoveId": "sm_01j9z...",
+  "primaryWorkerId": "wrk_01j9z...",
+  "tractorId": "trac_01j9z...",
+  "trailerId": "tr_01j9z...",
+  "secondaryWorkerId": null,
+  "status": "New",
+  "businessUnitId": "bu_01j9z...",
+  "organizationId": "org_01j9z...",
+  "version": 1,
+  "createdAt": 1712000000,
+  "updatedAt": 1712000000
+}
+```
+
+---
+
+## PUT /api/v1/shipment-moves/:moveID/assignment/
+
+Replaces the current assignment for a move with new driver and equipment selections. Use this to re-dispatch a move that was previously assigned.
+
+### Path parameters
+
+<ParamField path="moveID" type="string" required>
+  The move ID to reassign (prefixed `sm_`).
+</ParamField>
+
+### Request body
+
+Same fields as the [create assignment request](#post-apiv1shipment-movesmoveidassignment).
+
+### Example request
+
+```bash
+curl -X PUT https://api.trenova.app/api/v1/shipment-moves/sm_01j9z.../assignment/ \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "primaryWorkerId": "wrk_02j9z...",
+    "tractorId": "trac_02j9z...",
+    "trailerId": "tr_01j9z..."
+  }'
+```
+
+---
+
+## DELETE /api/v1/shipment-moves/:moveID/assignment/
+
+Removes the assignment from a move, returning the move to `New` status. Returns `204 No Content`.
+
+### Path parameters
+
+<ParamField path="moveID" type="string" required>
+  The move ID to unassign (prefixed `sm_`).
+</ParamField>
+
+---
+
+## POST /api/v1/assignments/check-worker-compliance/
+
+Validates that the specified workers meet all compliance requirements (e.g., license validity, HOS availability) before you commit an assignment. Returns `200 {"valid": true}` on success, or a problem detail describing the compliance issue.
+
+### Request body
+
+<ParamField body="primaryWorkerId" type="string" required>
+  ID of the primary worker to validate.
+</ParamField>
+
+<ParamField body="secondaryWorkerId" type="string">
+  ID of a secondary worker to validate alongside the primary.
+</ParamField>
+
+<ParamField body="shipmentMoveId" type="string" required>
+  ID of the move the workers would be assigned to. Used to validate HOS against the move's planned schedule.
+</ParamField>
+
+---
+
+## Response fields
+
+<ResponseField name="id" type="string">
+  Unique assignment identifier, prefixed `asn_`.
+</ResponseField>
+
+<ResponseField name="businessUnitId" type="string">
+  ID of the business unit that owns this assignment.
+</ResponseField>
+
+<ResponseField name="organizationId" type="string">
+  ID of the organization that owns this assignment.
+</ResponseField>
+
+<ResponseField name="shipmentMoveId" type="string">
+  ID of the move this assignment belongs to.
+</ResponseField>
+
+<ResponseField name="primaryWorkerId" type="string">
+  ID of the primary driver.
+</ResponseField>
+
+<ResponseField name="tractorId" type="string">
+  ID of the assigned tractor. Null if unset.
+</ResponseField>
+
+<ResponseField name="trailerId" type="string">
+  ID of the assigned trailer. Null if not applicable.
+</ResponseField>
+
+<ResponseField name="secondaryWorkerId" type="string">
+  ID of the secondary driver or co-driver. Null if not used.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current assignment status. See [assignment status values](#assignment-status-values).
+</ResponseField>
+
+<ResponseField name="archivedAt" type="integer">
+  Unix epoch timestamp of when this assignment was archived (superseded by a reassignment). Null for active assignments.
+</ResponseField>
+
+<ResponseField name="version" type="integer">
+  Optimistic concurrency version.
+</ResponseField>
+
+<ResponseField name="createdAt" type="integer">
+  Unix epoch timestamp of record creation.
+</ResponseField>
+
+<ResponseField name="updatedAt" type="integer">
+  Unix epoch timestamp of last update.
+</ResponseField>
+
+---
+
+## Assignment status values
+
+| Value | Description |
+|-------|-------------|
+| `New` | Assignment created but the move has not yet started. |
+| `InProgress` | The assigned driver has begun executing this move. |
+| `Completed` | The move was completed successfully with this assignment. |
+| `Canceled` | The assignment was canceled before the move was executed. |

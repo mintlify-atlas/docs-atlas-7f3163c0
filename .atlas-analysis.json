@@ -1,28 +1,11 @@
 {
-  "$schema": "https://mintlify.com/docs.json",
-  "name": "Trenova",
+  "projectType": "saas",
+  "projectName": "Trenova",
+  "projectDescription": "An AI-driven, open-source Transportation Management System (TMS) built for over-the-road carriers, providing shipment management, fleet tracking, compliance, billing, and real-time dispatch intelligence.",
   "theme": "luma",
-  "colors": {
-    "primary": "#5c64f4",
-    "light": "#acb4fc",
-    "dark": "#ffffff"
-  },
-  "favicon": "https://media.brand.dev/bdf1d847-06bd-4151-b03e-50a3e244afbd.png",
-  "logo": {
-    "light": "https://media.brand.dev/f5cf9483-55db-4419-81cb-331fd5cf7957.svg",
-    "dark": "https://media.brand.dev/f5cf9483-55db-4419-81cb-331fd5cf7957.svg"
-  },
-  "navbar": {
-    "primary": {
-      "type": "github",
-      "href": "https://github.com/emoss08/trenova"
-    }
-  },
-  "footer": {
-    "socials": {
-      "github": "https://github.com/emoss08/trenova"
-    }
-  },
+  "primaryColor": "#5c64f4",
+  "lightColor": "#acb4fc",
+  "darkColor": "#ffffff",
   "navigation": {
     "tabs": [
       {
@@ -120,5 +103,41 @@
         ]
       }
     ]
-  }
+  },
+  "keyFeatures": [
+    "AI-driven shipment management with formula templates and dynamic freight rating",
+    "Full fleet management for tractors, trailers, and equipment types",
+    "Worker management including profiles, PTO, and compliance tracking",
+    "Real-time dispatch and assignment engine powered by Temporal workflows",
+    "Hazardous materials compliance with DOT reference data and segregation rules",
+    "Customer management with billing controls and accessorial charge support",
+    "Fiscal year and GL account management for integrated financial reporting",
+    "Role-based access control with fine-grained resource permissions",
+    "External integrations: Google Maps, Samsara, OpenAI, and HERE routing",
+    "Full-text search via Meilisearch with real-time change data capture (CDC)",
+    "Table change alerts and audit logging for operational visibility",
+    "Self-hosted Docker deployment with Caddy reverse proxy and TLS automation"
+  ],
+  "publicApiSurface": [
+    "GET/POST /api/v1/shipments",
+    "GET/PUT/DELETE /api/v1/shipments/:id",
+    "GET/POST /api/v1/shipment-moves",
+    "POST /api/v1/assignments",
+    "GET/POST /api/v1/tractors",
+    "GET/POST /api/v1/trailers",
+    "GET/POST /api/v1/workers",
+    "GET/POST /api/v1/customers",
+    "GET/POST /api/v1/locations",
+    "GET/POST /api/v1/commodities",
+    "GET/POST /api/v1/hazardous-materials",
+    "GET/POST /api/v1/fleet-codes",
+    "GET/POST /api/v1/formula-templates",
+    "GET/POST /api/v1/integrations",
+    "GET/POST /api/v1/roles",
+    "GET/POST /api/v1/users",
+    "POST /api/v1/auth/login",
+    "POST /api/v1/auth/logout",
+    "GET /api/v1/system/version",
+    "GET /api/v1/system/update-status"
+  ]
 }

@@ -1,0 +1,259 @@
+---
+title: "Users & Roles"
+description: "Manage user accounts, roles, and permissions"
+---
+
+Trenova uses a resource-based access control model. Every user belongs to an organization and carries one or more role assignments. Roles are named collections of resource permissions that determine what a user can see and do.
+
+## User accounts
+
+Navigate to **Admin → Users** to create and manage user accounts.
+
+### User fields
+
+| Field | Description |
+|---|---|
+| **Name** | Full display name (max 255 characters) |
+| **Username** | Unique login handle, 1–20 characters |
+| **Email Address** | Used for login and notifications |
+| **Timezone** | The user's local timezone, used for displaying timestamps |
+| **Time Format** | `12-hour` or `24-hour` clock preference |
+| **Status** | `Active` or `Inactive` — inactive users cannot log in |
+| **Profile Picture** | Optional avatar image |
+| **Must Change Password** | Forces a password reset on next login |
+| **Is Locked** | Locks the account, preventing login regardless of status |
+
+### Account status rules
+
+- A user with **Status = Inactive** receives an authorization error on login.
+- A user with **Is Locked = true** is blocked even if their status is `Active`. Use the lock flag when you need to temporarily suspend access without deactivating the account.
+- Only platform administrators (users with `isPlatformAdmin = true`) can unlock accounts.
+
+### Organization membership
+
+A user can belong to multiple organizations. Each membership record tracks:
+- Which **organization** the user is a member of
+- Which **business unit** the user belongs to within that organization
+- When the user **joined** and who **granted** the membership
+- An optional **expiry date** after which the membership is automatically revoked
+
+The user's **current organization** is the one they are actively working in. Users switch organizations from their profile menu.
+
+## Roles
+
+A role is a named collection of resource permissions. Roles are scoped to an organization.
+
+Navigate to **Admin → Roles** to create and manage roles.
+
+### Role fields
+
+| Field | Description |
+|---|---|
+| **Name** | Display name for the role (max 255 characters) |
+| **Description** | Optional free-text explanation of the role's purpose |
+| **Is System** | System roles are created by Trenova and cannot be deleted |
+| **Is Org Admin** | Grants organization-wide administrative access |
+| **Is Business Unit Admin** | Grants administrative access scoped to a business unit |
+| **Max Sensitivity** | The highest field sensitivity level this role can access: `public`, `internal`, `restricted`, or `confidential` |
+| **Parent Role IDs** | Optional list of roles whose permissions this role inherits |
+
+<Note>
+  System roles (`isSystem = true`) are managed by Trenova. You can assign them to users but cannot modify or delete them.
+</Note>
+
+### Role hierarchy
+
+Roles support inheritance via **Parent Role IDs**. A role automatically inherits all permissions from its parent roles. You can build a hierarchy where a senior dispatcher role inherits all permissions of a junior dispatcher role and adds additional ones.
+
+## Permissions model
+
+Each role contains a list of **resource permissions**. A resource permission grants one or more operations on a specific resource.
+
+### Resources
+
+Resources map directly to domain entities in Trenova. The following table groups resources by area:
+
+<AccordionGroup>
+  <Accordion title="Administration">
+    | Resource | Description |
+    |---|---|
+    | `organization` | Organization profile and settings |
+    | `business_unit` | Business unit management |
+    | `user` | User accounts |
+    | `role` | Role management |
+    | `audit_log` | Audit log access |
+    | `table_configuration` | Table column and display settings |
+    | `custom_field_definition` | Custom field definitions |
+    | `sequence_config` | Sequence number configuration |
+    | `integration` | Third-party integrations |
+    | `api_key` | API key management |
+    | `data_entry_control` | Data entry control settings |
+  </Accordion>
+  <Accordion title="Equipment">
+    | Resource | Description |
+    |---|---|
+    | `equipment_type` | Equipment type catalog |
+    | `equipment_manufacturer` | Equipment manufacturer catalog |
+    | `tractor` | Tractor records |
+    | `trailer` | Trailer records |
+    | `fleet_code` | Fleet code catalog |
+  </Accordion>
+  <Accordion title="Workers">
+    | Resource | Description |
+    |---|---|
+    | `worker` | Driver and worker records |
+    | `worker_pto` | Worker PTO requests |
+  </Accordion>
+  <Accordion title="Operations">
+    | Resource | Description |
+    |---|---|
+    | `shipment` | Shipment records |
+    | `shipment_comment` | Comments on shipments |
+    | `shipment_move` | Move legs within a shipment |
+    | `shipment_stop` | Individual stops on a move |
+    | `shipment_hold` | Shipment hold management |
+    | `dispatch_control` | Dispatch control settings |
+    | `hold_reason` | Hold reason catalog |
+    | `shipment_control` | Shipment control settings |
+    | `hazmat_segregation_rule` | Hazmat segregation rules |
+    | `distance_override` | Distance override records |
+  </Accordion>
+  <Accordion title="Billing & Accounting">
+    | Resource | Description |
+    |---|---|
+    | `invoice` | Customer invoices |
+    | `accessorial_charge` | Accessorial charge catalog |
+    | `charge_type` | Charge type catalog |
+    | `revenue_code` | Revenue code catalog |
+    | `formula_template` | Rate formula templates |
+    | `billing_control` | Billing control settings |
+    | `accounting_control` | Accounting control settings |
+    | `account_type` | GL account types |
+    | `general_ledger_account` | General ledger accounts |
+    | `division_code` | Division codes |
+    | `fiscal_year` | Fiscal year management |
+    | `fiscal_period` | Fiscal period management |
+  </Accordion>
+  <Accordion title="Customers & Locations">
+    | Resource | Description |
+    |---|---|
+    | `customer` | Customer records |
+    | `customer_contact` | Customer contact records |
+    | `location` | Location records |
+    | `location_category` | Location category catalog |
+  </Accordion>
+  <Accordion title="Commodities & Compliance">
+    | Resource | Description |
+    |---|---|
+    | `commodity` | Commodity catalog |
+    | `hazardous_material` | Hazardous material catalog |
+    | `qualification` | Worker qualification records |
+    | `document_classification` | Document classification catalog |
+    | `document` | Document records |
+    | `document_type` | Document type catalog |
+  </Accordion>
+  <Accordion title="Reference Data & Reporting">
+    | Resource | Description |
+    |---|---|
+    | `shipment_type` | Shipment type catalog |
+    | `service_type` | Service type catalog |
+    | `delay_code` | Delay code catalog |
+    | `reason_code` | Reason code catalog |
+    | `comment_type` | Comment type catalog |
+    | `tag` | Tag catalog |
+    | `report` | Report access |
+    | `dashboard` | Dashboard access |
+  </Accordion>
+</AccordionGroup>
+
+### Operations
+
+Each resource permission grants a set of operations. Operations have dependency rules — granting a higher-privilege operation automatically includes its dependencies.
+
+| Operation | Dependencies | Description |
+|---|---|---|
+| `read` | — | View records |
+| `create` | `read` | Create new records |
+| `update` | `read` | Edit existing records |
+| `delete` | `read` | Delete records |
+| `export` | `read` | Export records to file |
+| `import` | `read`, `create` | Bulk import records |
+| `approve` | `read`, `update` | Approve pending records |
+| `reject` | `read`, `update` | Reject pending records |
+| `assign` | `read`, `update` | Assign resources (e.g., assign driver to shipment) |
+| `unassign` | `read`, `update` | Remove an assignment |
+| `archive` | `read`, `update` | Archive a record |
+| `restore` | `read`, `update` | Restore an archived record |
+| `submit` | `read`, `update` | Submit for review or approval |
+| `cancel` | `read`, `update` | Cancel a record |
+| `duplicate` | `read`, `create` | Duplicate a record |
+| `close` | `read`, `update` | Close a record |
+| `lock` | `read`, `update` | Lock a record against further edits |
+| `unlock` | `read`, `update` | Unlock a locked record |
+| `activate` | `read`, `update` | Activate an inactive record |
+| `reopen` | `read`, `update` | Reopen a closed or cancelled record |
+
+<Note>
+  When you grant an operation, Trenova automatically grants all of its dependencies. When you revoke an operation, Trenova automatically revokes all operations that depend on it.
+</Note>
+
+### Data scope
+
+Each resource permission also has a **data scope** that controls which records the role can access:
+
+| Scope | Description |
+|---|---|
+| `own` | Only records created by or assigned to the user |
+| `organization` | All records within the user's current organization |
+| `all` | Records across all organizations (platform admin only) |
+
+### Field sensitivity
+
+Roles have a **Max Sensitivity** level that controls which sensitive fields are visible:
+
+| Level | Description |
+|---|---|
+| `public` | Freely visible data |
+| `internal` | Internal operational data |
+| `restricted` | Data restricted to authorized roles |
+| `confidential` | Highly sensitive data such as payroll and personal information |
+
+A role with `maxSensitivity = internal` cannot see fields marked as `restricted` or `confidential`, even if the role has `read` permission on that resource.
+
+## Assigning roles to users
+
+To assign a role to a user:
+
+1. Navigate to **Admin → Users** and open the user's profile.
+2. Select **Add Role** and choose the role from the list.
+3. Optionally set an **Expiry Date** — after this date the assignment is automatically revoked.
+
+To remove an assignment, open the user's profile, find the role in the **Roles** tab, and select **Remove**.
+
+You can also manage assignments from **Admin → Roles** by selecting a role and navigating to its **Assignments** tab.
+
+## Admin vs. regular users
+
+There are two special flags that grant elevated access outside the normal permissions model:
+
+- **Is Platform Admin** (`isPlatformAdmin`) — Grants unrestricted access to all organizations and all resources on the platform. Assign this only to Trenova system administrators.
+- **Is Org Admin** (on a role with `isOrgAdmin = true`) — Grants administrative access to all resources within the user's current organization.
+
+<Warning>
+  Platform admin access bypasses all resource permission checks. Grant it only to trusted infrastructure personnel.
+</Warning>
+
+## Session management
+
+Trenova tracks the last login time for each user (`lastLoginAt`). Administrators can view this from the user's profile to identify inactive accounts.
+
+Session timeout is configured at the platform level. Users are automatically signed out after the configured idle period.
+
+<CardGroup cols={2}>
+  <Card title="API Keys" icon="key" href="/developer/api-keys">
+    Create API keys for programmatic access
+  </Card>
+  <Card title="Audit Logs" icon="scroll" href="/admin/audit-logs">
+    Review all changes made by users and API keys
+  </Card>
+</CardGroup>

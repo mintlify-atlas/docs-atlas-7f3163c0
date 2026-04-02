@@ -1,0 +1,164 @@
+---
+title: "Organizations"
+description: "Configure your organization, business units, and system-wide settings"
+---
+
+An organization is the top-level entity in Trenova. Every user account, shipment, invoice, and configuration record belongs to exactly one organization. When you first set up Trenova, a default organization and business unit are created for you.
+
+## Organization profile
+
+Navigate to **Admin → Organization** to view and edit your organization's profile. The following fields are available:
+
+| Field | Description |
+|---|---|
+| **Name** | Legal or operating name of your company (max 100 characters) |
+| **SCAC Code** | Your 4-character Standard Carrier Alpha Code issued by the NMFTA |
+| **DOT Number** | Your FMCSA DOT number (numeric, up to 8 digits) |
+| **Tax ID** | Federal Employer Identification Number (EIN) |
+| **Address** | Physical address (line 1, line 2, city, state, postal code) |
+| **Timezone** | Default timezone applied to new users and operational timestamps |
+| **Logo** | Your company logo displayed on invoices and the navigation bar |
+
+<Note>
+  The SCAC code and DOT number are used in EDI transactions and compliance reports. Changing them after you have issued shipments requires careful coordination with your customers and carriers.
+</Note>
+
+## Business units
+
+A business unit is a sub-unit within your organization. You can use business units to represent separate divisions, terminals, or cost centers. Every user, shipment, and configuration record is scoped to both an organization and a business unit.
+
+To manage business units, go to **Admin → Business Units**.
+
+| Field | Description |
+|---|---|
+| **Name** | Display name for the business unit (letters, numbers, spaces, hyphens, ampersands, and periods; max 100 characters) |
+| **Code** | Short identifier in uppercase letters and numbers, 2–10 characters (e.g., `CORP`, `WEST01`) |
+
+Each user has a primary business unit set at account creation. A user can be a member of multiple organizations but always has a single active business unit context per session.
+
+## Control panels
+
+Trenova provides a set of control panels that govern system-wide operational defaults. Access each one from **Admin → Settings**.
+
+### Shipment Control
+
+Shipment Control defines validation rules and automation behavior for shipments.
+
+| Setting | Default | Description |
+|---|---|---|
+| **Max Shipment Weight Limit** | 80,000 lbs | The maximum gross vehicle weight enforced on new shipments |
+| **Auto Delay Shipments** | Enabled | Automatically marks shipments as delayed when they exceed the threshold |
+| **Auto Delay Threshold** | 30 min | Minutes after scheduled time before a shipment is flagged as delayed |
+| **Auto Cancel Shipments** | Disabled | Automatically cancels shipments that remain open beyond the threshold |
+| **Auto Cancel Threshold** | 30 days | Days before an open shipment is automatically cancelled |
+| **Track Detention Time** | Disabled | Records detention time at pickup and delivery stops |
+| **Detention Threshold** | 30 min | Minutes after free time before detention starts accruing |
+| **Auto Generate Detention Charges** | Disabled | Creates accessorial charges automatically when detention is tracked |
+| **Track Customer Rejections** | Disabled | Records when customers reject deliveries |
+| **Check for Duplicate BOLs** | Enabled | Prevents duplicate bill-of-lading numbers within the organization |
+| **Allow Move Removals** | Enabled | Allows dispatchers to remove moves from an assigned shipment |
+| **Check Hazmat Segregation** | Enabled | Validates that hazardous materials on the same shipment comply with segregation rules |
+
+<Warning>
+  Disabling **Check Hazmat Segregation** removes a safety guard. Only disable this if your organization manages segregation through a separate process.
+</Warning>
+
+### Billing Control
+
+Billing Control defines invoice formatting, automation, and exception handling.
+
+| Setting | Default | Description |
+|---|---|---|
+| **Invoice Number Prefix** | `INV-` | Prefix applied to all generated invoice numbers (alphanumeric with hyphens, 3–10 characters) |
+| **Credit Memo Number Prefix** | `CM-` | Prefix applied to all credit memos |
+| **Payment Term** | `Net30` | Default payment term applied to new customer invoices |
+| **Transfer Schedule** | `Continuous` | How often ready-to-bill shipments are transferred to the billing queue: `Continuous`, `Hourly`, `Daily`, or `Weekly` |
+| **Billing Exception Handling** | `Queue` | What happens when a billing exception occurs: `Queue`, `Notify`, `AutoResolve`, or `Reject` |
+| **Auto Transfer** | Disabled | Automatically transfers shipments that meet billing requirements |
+| **Auto Mark Ready to Bill** | Disabled | Automatically marks shipments as ready-to-bill when requirements are met |
+| **Auto Bill** | Disabled | Automatically generates invoices without manual review |
+| **Enforce Customer Billing Requirements** | Disabled | Blocks billing if the customer's required documents or conditions are not met |
+| **Validate Customer Rates** | Disabled | Verifies that billed rates match the customer's contracted rates |
+| **Allow Invoice Consolidation** | Disabled | Combines multiple shipments into a single invoice |
+| **Consolidation Period** | 7 days | The rolling window used when consolidating invoices |
+| **Rate Discrepancy Threshold** | 5.00% | Percentage difference allowed before a rate discrepancy exception is raised |
+| **Transfer Batch Size** | 100 | Number of shipments processed per transfer run |
+| **Auto Bill Batch Size** | 100 | Number of shipments processed per auto-bill run |
+
+### Accounting Control
+
+Accounting Control governs how Trenova integrates with your general ledger.
+
+**Accounting method** — The top-level method that constrains which revenue and expense recognition options are valid:
+
+| Method | Description |
+|---|---|
+| `Accrual` | Record revenue when earned and expenses when incurred (GAAP/ASC 606 compliant) |
+| `Cash` | Record revenue when payment is received and expenses when payment is made |
+| `Hybrid` | Record revenue on an accrual basis with expenses on a cash basis (common for IRS tax reporting) |
+
+**Revenue recognition** — Controls when revenue is posted to the GL:
+- `OnDelivery` — When goods are delivered (ASC 606 point-in-time)
+- `OnBilling` — When the invoice is created
+- `OnPayment` — When payment is received
+- `OnPickup` — When goods are picked up by the carrier
+
+**Expense recognition** — Controls when carrier expenses are posted:
+- `OnIncurrence` — When the service is performed (accrual basis)
+- `OnPayment` — When the vendor is paid
+- `OnAccrual` — When the vendor bill is received and accepted
+
+Additional accounting settings include journal entry automation, period controls, reconciliation thresholds, multi-currency support, and default GL account assignments. Each of these is configurable from **Admin → Accounting Control**.
+
+### Data Entry Control
+
+Data Entry Control enforces data quality rules at the point of entry. Navigate to **Admin → Data Entry Control** to configure mandatory field requirements and entry-time validations that apply organization-wide.
+
+<CardGroup cols={2}>
+  <Card title="Users & Roles" icon="users" href="/admin/users-roles">
+    Manage user accounts and assign roles
+  </Card>
+  <Card title="Integrations" icon="plug" href="/admin/integrations">
+    Connect to Google Maps, Samsara, and other services
+  </Card>
+</CardGroup>
+
+## Custom fields
+
+Custom fields let you attach additional data to domain objects without modifying the core schema. Go to **Admin → Custom Fields** to define fields for entities such as Shipment, Worker, Tractor, and Customer.
+
+Each custom field definition includes:
+- **Label** — The display name shown in the UI
+- **Field type** — The data type (text, number, date, boolean, select)
+- **Entity type** — Which domain object the field belongs to
+- **Required** — Whether the field must be filled before saving
+
+Custom field values are stored alongside the entity and appear in exports and API responses.
+
+## Sequence configuration
+
+Trenova auto-generates sequential identifiers for several document types. Navigate to **Admin → Sequence Configuration** to control the format for each sequence type.
+
+| Sequence type | Description |
+|---|---|
+| `pro_number` | The PRO number assigned to each shipment |
+| `consolidation` | Identifiers for consolidated shipment groups |
+| `invoice` | Invoice numbers (independent of the billing control prefix) |
+| `work_order` | Work order identifiers |
+
+For each sequence type you can configure:
+
+- **Prefix** — A fixed string at the start of each generated value
+- **Include year / month / week / day** — Embeds date components into the identifier
+- **Year digits** — 2 or 4 digit year representation
+- **Sequence digits** — Zero-padded counter width (1–10 digits)
+- **Include location code** — Appends a location identifier
+- **Include business unit code** — Appends the business unit code
+- **Include random digits** — Appends a random suffix (1–10 digits) for additional uniqueness
+- **Include check digit** — Appends a computed check digit for validation
+- **Separator character** — One of `-`, `_`, `/`, `.` placed between components
+- **Custom format** — A fully custom format string that overrides the structured options
+
+<Note>
+  Changing a sequence configuration takes effect on the next generated identifier. Previously issued numbers are not affected.
+</Note>

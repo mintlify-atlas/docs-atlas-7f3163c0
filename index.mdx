@@ -1,97 +1,67 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Trenova TMS Documentation"
+description: "An AI-driven Transportation Management System built for over-the-road carriers. Manage shipments, fleet, workers, and dispatch from a single platform."
 ---
 
-## Setting up
+Trenova is an open-source, AI-first Transportation Management System designed to make enterprise-grade TMS technology accessible to carriers of all sizes. From creating your first shipment to real-time dispatch intelligence, everything you need is here.
 
-Get your documentation site up and running in minutes.
-
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Deploy Trenova and create your first shipment in minutes.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Architecture Overview" icon="sitemap" href="/architecture">
+    Understand how Trenova's services fit together.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Core Features" icon="boxes-stacked" href="/features/shipments">
+    Explore shipment management, fleet tracking, and dispatch.
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Integrate with Trenova's REST API programmatically.
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## What Trenova does
 
-Everything you need to create world-class documentation.
+Trenova replaces fragmented spreadsheets and costly legacy TMS platforms with a single, cohesive system built for modern Over-The-Road carriers.
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
+<CardGroup cols={3}>
+  <Card title="Shipment Management" icon="truck" href="/features/shipments">
+    Create, dispatch, and track shipments end-to-end with PRO number tracking and multi-stop moves.
   </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
+  <Card title="Fleet Management" icon="car-side" href="/features/fleet">
+    Manage tractors, trailers, equipment types, and fleet codes in one place.
   </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
+  <Card title="Worker Management" icon="users" href="/features/workers">
+    Track driver profiles, PTO, compliance, and assignments.
   </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
+  <Card title="Customer & Billing" icon="file-invoice-dollar" href="/features/billing">
+    Manage customers, accessorial charges, GL accounts, and fiscal periods.
   </Card>
-</Columns>
+  <Card title="Hazmat Compliance" icon="triangle-exclamation" href="/features/hazmat">
+    Full DOT hazardous materials reference data and segregation rule enforcement.
+  </Card>
+  <Card title="Integrations" icon="plug" href="/admin/integrations">
+    Connect to Google Maps, Samsara, OpenAI, and HERE routing.
+  </Card>
+</CardGroup>
 
-## Need inspiration?
+## Get up and running
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<Steps>
+  <Step title="Deploy Trenova">
+    Pull the Docker images and run the setup script on your server. See the [Deployment Overview](/deployment/overview) for prerequisites and step-by-step instructions.
+  </Step>
+  <Step title="Configure your organization">
+    Log in with the default admin credentials, change your password, and set up your organization settings. See [Organizations](/admin/organizations).
+  </Step>
+  <Step title="Add your fleet and workers">
+    Create equipment types, add your tractors and trailers, then onboard your drivers. See [Fleet Management](/features/fleet) and [Worker Management](/features/workers).
+  </Step>
+  <Step title="Create your first shipment">
+    Set up a customer, configure service types, and dispatch your first shipment. See the [Quick Start](/quickstart) guide for a complete walkthrough.
+  </Step>
+</Steps>
+
+<Note>
+  Trenova is currently in active development and not yet recommended for production use. APIs and features may change before the stable release.
+</Note>

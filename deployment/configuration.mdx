@@ -1,0 +1,185 @@
+---
+title: "Configuration"
+description: "Environment variables and application settings for Trenova"
+---
+
+Trenova is configured through two files:
+
+- **`.env`** — sets runtime secrets and connection parameters that Docker Compose injects into containers.
+- **`config/config.prod.yaml`** — controls application-level behaviour (pool sizes, security policy, monitoring, etc.).
+
+The `setup.sh` script generates `.env` with cryptographically secure random values. For production, review every value before going live.
+
+## Environment variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DOMAIN` | Hostname for the application | `localhost` |
+| `VITE_API_URL` | API endpoint URL embedded in the frontend | `/api/v1` |
+| `TRENOVA_DATABASE_NAME` | PostgreSQL database name | `trenova_db` |
+| `TRENOVA_DATABASE_USER` | PostgreSQL username | `trenova` |
+| `TRENOVA_DATABASE_PASSWORD` | PostgreSQL password | Auto-generated |
+| `TRENOVA_CACHE_PASSWORD` | Redis password | Auto-generated |
+| `TRENOVA_SECURITY_SESSION_SECRET` | Session signing key — minimum 32 characters | Auto-generated |
+| `TRENOVA_SECURITY_ENCRYPTION_KEY` | Data encryption key — minimum 32 characters | Auto-generated |
+| `TRENOVA_SECURITY_SESSION_DOMAIN` | Cookie domain — must match `DOMAIN` | `localhost` |
+| `TRENOVA_GOOGLE_APIKEY` | Google API key used by backend services | Auto-generated placeholder |
+| `TRENOVA_SYSTEM_SYSTEMUSERPASSWORD` | Internal system user bootstrap password | Auto-generated |
+| `TRENOVA_STORAGE_ACCESSKEY` | MinIO access key | `trenova-minio` |
+| `TRENOVA_STORAGE_SECRETKEY` | MinIO secret key | Auto-generated |
+| `TRENOVA_STORAGE_PUBLICENDPOINT` | Public URL for the MinIO storage subdomain | `https://storage.localhost` |
+| `TRENOVA_MEILI_MASTER_KEY` | Meilisearch master key | Auto-generated |
+
+<Warning>
+  Set `.env` file permissions to `600` so only the owning user can read it:
+
+  ```bash
+  chmod 600 .env
+  ```
+</Warning>
+
+A minimal `.env` for a domain `trenova.corp.local` looks like this:
+
+```bash
+DOMAIN=trenova.corp.local
+VITE_API_URL=https://trenova.corp.local/api/v1
+
+TRENOVA_DATABASE_NAME=trenova_db
+TRENOVA_DATABASE_USER=trenova
+TRENOVA_DATABASE_PASSWORD=<strong-random-password>
+TRENOVA_SECURITY_SESSION_SECRET=<32+-char-random-string>
+TRENOVA_SECURITY_ENCRYPTION_KEY=<32+-char-random-string>
+TRENOVA_SECURITY_SESSION_DOMAIN=trenova.corp.local
+TRENOVA_STORAGE_PUBLICENDPOINT=https://storage.trenova.corp.local
+
+TRENOVA_STORAGE_ACCESSKEY=trenova-minio
+TRENOVA_STORAGE_SECRETKEY=<strong-random-password>
+TRENOVA_MEILI_MASTER_KEY=<strong-random-password>
+```
+
+## Application configuration
+
+`config/config.prod.yaml` controls application-level settings. The sections below document the key knobs.
+
+### Server settings
+
+```yaml
+server:
+  host: 0.0.0.0
+  port: 8080
+  readTimeout: 30s
+  writeTimeout: 30s
+  idleTimeout: 120s
+  cors:
+    enabled: false  # Caddy handles CORS
+```
+
+CORS is disabled in the application because Caddy manages cross-origin headers at the proxy layer.
+
+### Database connection pool
+
+TMS services connect through PgBouncer on port `6432`. Temporal connects directly to PostgreSQL on port `5432`.
+
+```yaml
+database:
+  maxIdleConns: 25   # Reduce on low-memory systems
+  maxOpenConns: 200  # Increase for high-concurrency workloads
+```
+
+```yaml
+pgbouncer:
+  POOL_MODE: session
+  DEFAULT_POOL_SIZE: 80
+  MAX_DB_CONNECTIONS: 100
+  MAX_CLIENT_CONN: 1000
+```
+
+### Redis cache pool
+
+```yaml
+cache:
+  poolSize: 50       # Total connection pool size
+  minIdleConns: 10   # Minimum idle connections kept open
+```
+
+### Security and session settings
+
+```yaml
+security:
+  session:
+    maxAge: 24h           # Session lifetime
+    secure: true          # Requires HTTPS — do not set to false in production
+    sameSite: lax         # Cookie SameSite policy
+    domain: trenova.local # Change to match your DOMAIN
+  rateLimit:
+    enabled: true
+    requestsPerMinute: 60
+    burstSize: 10
+```
+
+<Note>
+  `session.domain` must exactly match the hostname in your browser's address bar. A mismatch causes login sessions to be rejected immediately.
+</Note>
+
+### Update checker
+
+Trenova checks GitHub for new releases and shows a banner to admin users when an update is available.
+
+```yaml
+update:
+  enabled: true           # Set to false to disable update checks
+  checkInterval: 1h       # How often to poll GitHub
+  githubOwner: emoss08
+  githubRepo: trenova
+  allowPrerelease: false  # Include pre-release versions
+  offlineMode: false      # Set to true for air-gapped deployments
+```
+
+### Prometheus metrics
+
+```yaml
+monitoring:
+  metrics:
+    enabled: true
+    port: 9090
+    path: /metrics
+```
+
+When enabled, expose port `9090` in `docker-compose.yml` and configure your Prometheus instance to scrape it.
+
+## Resource limits tuning
+
+Default memory limits are conservative. Edit the `deploy` section of the relevant service in `docker-compose.yml` to raise or lower them:
+
+```yaml
+services:
+  postgres:
+    deploy:
+      resources:
+        limits:
+          memory: 4G      # Increase for larger datasets
+        reservations:
+          memory: 2G
+
+  tms-api:
+    deploy:
+      resources:
+        limits:
+          memory: 1G      # Increase for high concurrency
+          cpus: '2'
+```
+
+After changing resource limits, recreate the affected containers:
+
+```bash
+docker compose up -d --force-recreate postgres tms-api
+```
+
+<CardGroup cols={2}>
+  <Card title="TLS certificates" icon="lock" href="/deployment/tls-certificates">
+    Configure HTTPS for your domain.
+  </Card>
+  <Card title="Maintenance" icon="wrench" href="/deployment/maintenance">
+    Backup, upgrade, and monitor your deployment.
+  </Card>
+</CardGroup>

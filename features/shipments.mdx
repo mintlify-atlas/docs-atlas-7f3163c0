@@ -1,0 +1,215 @@
+---
+title: "Shipment Management"
+description: "Create, dispatch, and track shipments end-to-end"
+---
+
+## Overview
+
+A shipment in Trenova represents a freight order from origin to final destination. Every shipment moves through a defined lifecycle, giving you and your team real-time visibility into where each load stands at any moment.
+
+### Shipment lifecycle
+
+```
+New → PartiallyAssigned → Assigned → InTransit → PartiallyCompleted → Completed → ReadyToInvoice → Invoiced
+                                          ↓
+                                       Delayed
+                                          ↓
+                                       Canceled
+```
+
+| Status | Meaning |
+|---|---|
+| `New` | Shipment created, no assignment yet |
+| `PartiallyAssigned` | At least one move has been assigned but not all |
+| `Assigned` | All moves have a tractor, trailer, and driver assigned |
+| `InTransit` | At least one stop is in progress |
+| `Delayed` | Shipment is behind schedule |
+| `PartiallyCompleted` | Some moves are completed but not all |
+| `Completed` | All moves and stops are completed |
+| `ReadyToInvoice` | Delivery confirmed; ready to bill the customer |
+| `Invoiced` | Invoice has been generated and sent |
+| `Canceled` | Shipment was canceled; a cancel reason is recorded |
+
+---
+
+## Key shipment fields
+
+| Field | Description |
+|---|---|
+| **PRO Number** | System-generated unique identifier for the shipment |
+| **BOL** | Bill of Lading number provided by the shipper |
+| **Service Type** | The service level (e.g., standard, expedited) — required |
+| **Shipment Type** | Optional classification for internal categorization |
+| **Customer** | The bill-to customer for the load — required |
+| **Tractor Type** | Equipment type required for the tractor |
+| **Trailer Type** | Equipment type required for the trailer |
+| **Formula Template** | The rate calculation template used for this shipment — required |
+| **Freight Charge** | Base freight amount |
+| **Other Charges** | Sum of all accessorial charges |
+| **Total Charges** | Freight charge + other charges |
+| **Weight** | Total shipment weight (lbs) |
+| **Pieces** | Total piece count |
+| **Temperature Min / Max** | Temperature range in °F for temperature-sensitive freight |
+| **Rating Unit** | The unit count used in rate calculation |
+| **Actual Ship Date** | Timestamp when the shipment physically departed |
+| **Actual Delivery Date** | Timestamp when the shipment was delivered |
+| **Consolidation Group** | Links this shipment to a consolidation group for multi-shipment billing |
+
+---
+
+## Shipment moves
+
+A shipment is broken into one or more **moves**. Each move represents a leg of the journey — for example, a pickup leg and a delivery leg, or a relay with a driver change in between.
+
+| Move Field | Description |
+|---|---|
+| **Sequence** | Order of this move within the shipment (0-based) |
+| **Status** | `New`, `Assigned`, `InTransit`, `Completed`, or `Canceled` |
+| **Loaded** | Whether the trailer is loaded on this move |
+| **Distance** | Calculated distance for this leg (miles) |
+| **Assignment** | The tractor, trailer, and workers assigned to this move |
+
+<Note>
+Each move has exactly one assignment record, which links the tractor, trailer, primary worker, and optional secondary worker for that leg.
+</Note>
+
+---
+
+## Stops
+
+Each move contains two or more **stops**. Stops define where the driver picks up and delivers freight.
+
+| Stop Field | Description |
+|---|---|
+| **Type** | `Pickup`, `Delivery`, `SplitPickup`, or `SplitDelivery` |
+| **Status** | `New`, `InTransit`, `Completed`, or `Canceled` |
+| **Schedule Type** | `Open` (driver chooses time) or `Appointment` (fixed window) |
+| **Sequence** | Order within the move (0-based) |
+| **Location** | The facility or address for this stop |
+| **Scheduled Window Start** | Earliest acceptable arrival time (required) |
+| **Scheduled Window End** | Latest acceptable arrival time (optional) |
+| **Actual Arrival** | Timestamp when the driver arrived |
+| **Actual Departure** | Timestamp when the driver departed |
+| **Weight / Pieces** | Freight tendered or received at this stop |
+| **Count Late Override** | Manually override late calculation for this stop |
+| **Count Detention Override** | Manually override detention calculation for this stop |
+
+<Tip>
+For appointment stops, Trenova tracks on-time performance and can automatically trigger detention billing when drivers wait beyond the free minutes defined in the customer's billing profile.
+</Tip>
+
+---
+
+## Commodities
+
+You can associate one or more **commodities** with a shipment using the `ShipmentCommodity` record. Each entry records:
+
+| Field | Description |
+|---|---|
+| **Commodity** | Reference to the commodity catalog item |
+| **Weight** | Weight of this commodity on the shipment (lbs) |
+| **Pieces** | Piece count for this commodity |
+
+If a commodity is designated as hazardous, the shipment inherits hazmat compliance requirements automatically.
+
+---
+
+## Additional charges
+
+**Additional charges** are accessorial charges applied on top of the base freight amount. Each charge links to an accessorial charge definition and records:
+
+| Field | Description |
+|---|---|
+| **Accessorial Charge** | The charge code (fuel surcharge, detention, layover, etc.) |
+| **Method** | `Flat`, `PerUnit`, or `Percentage` |
+| **Amount** | Dollar value for this charge |
+| **Unit** | Unit count (e.g., hours of detention) |
+| **System Generated** | Whether Trenova auto-applied this charge from billing rules |
+
+---
+
+## Formula templates
+
+Every shipment requires a **formula template** to calculate freight charges. Templates use an expression engine that evaluates variables from the shipment — such as distance, weight, pieces, or stops — and produce a dollar amount.
+
+You can assign different formula templates to different shipment types to support flat rates, per-mile pricing, per-pallet rates, or fully custom expressions.
+
+**Rating methods available:**
+
+| Method | Description |
+|---|---|
+| `FlatRate` | Fixed dollar amount regardless of distance or weight |
+| `PerMile` | Rate multiplied by total shipment distance |
+| `PerStop` | Rate multiplied by number of stops |
+| `PerPallet` | Rate multiplied by pallet (piece) count |
+| `PerLinearFeet` | Rate multiplied by linear footage |
+| `FormulaTemplate` | Evaluated dynamically using the expression engine |
+| `Other` | Custom calculation outside the standard methods |
+
+---
+
+## Assignment
+
+Assign resources to a shipment move from the dispatch screen or the shipment detail page. An assignment links:
+
+- **Tractor** — the power unit for the move
+- **Trailer** — the trailer carrying the freight
+- **Primary Worker** — the lead driver
+- **Secondary Worker** — optional co-driver or team driver
+
+Assignment status follows its own lifecycle: `New → InProgress → Completed / Canceled`.
+
+---
+
+## Hold management
+
+Place a hold on a shipment to pause operations. Holds are categorized by type and severity:
+
+**Hold types:** `Operational`, `Compliance`, `Customer`, `Finance`
+
+**Severity levels:**
+
+| Severity | Effect |
+|---|---|
+| `Informational` | Note only, no operational impact |
+| `Advisory` | Warning displayed but operations continue |
+| `Blocking` | Prevents dispatch, delivery, or billing (at least one must be selected) |
+
+Holds track who created them, when they started, and who released them. The source can be `User`, `Rule`, `API`, `ELD`, or `EDI`.
+
+---
+
+## Comments
+
+Add structured notes to a shipment using the comments feature. Each comment has a **type**, **visibility**, and **priority**.
+
+**Comment types:** `Internal`, `Dispatch`, `DriverUpdate`, `PickupInstruction`, `DeliveryInstruction`, `StatusUpdate`, `Exception`, `CustomerUpdate`, `Appointment`, `Document`, `Billing`, `Compliance`
+
+**Visibility:** `Internal`, `Operations`, `Customer`, `Driver`, `Accounting`
+
+**Priority:** `Low`, `Normal`, `High`, `Urgent`
+
+Comments can originate from a `User`, `System`, `Integration`, or `AI`.
+
+---
+
+## Consolidation
+
+Group related shipments for consolidated billing by assigning them the same **consolidation group ID**. Customers must have consolidation enabled in their billing profile, and you can configure group-by rules (location, PO number, BOL, or division) at the customer level.
+
+---
+
+<CardGroup cols={2}>
+  <Card title="Shipments API" icon="code" href="/api/shipments">
+    Full API reference for creating and managing shipments
+  </Card>
+  <Card title="Billing & Finance" icon="dollar-sign" href="/features/billing">
+    Formula templates, accessorial charges, and GL accounts
+  </Card>
+  <Card title="Fleet Management" icon="truck" href="/features/fleet">
+    Tractors, trailers, and equipment types
+  </Card>
+  <Card title="Worker Management" icon="user" href="/features/workers">
+    Drivers and worker assignments
+  </Card>
+</CardGroup>

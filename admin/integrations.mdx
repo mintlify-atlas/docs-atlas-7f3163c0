@@ -1,0 +1,102 @@
+---
+title: "Integrations"
+description: "Connect Trenova to external services like Google Maps, Samsara, and OpenAI"
+---
+
+Trenova's integration catalog lets you connect to third-party services that extend routing, telematics, and AI capabilities. Navigate to **Admin → Integrations** to see all available integrations and their current status.
+
+## Available integrations
+
+| Integration | Type | Category | Purpose |
+|---|---|---|---|
+| **Google Maps** | `GoogleMaps` | Mapping & Routing | Address geocoding and distance calculation |
+| **HERE** | `HERE` | Mapping & Routing | Routing and distance calculation alternative |
+| **Samsara** | `Samsara` | Telematics | Live vehicle tracking and ELD compliance |
+| **OpenAI** | `OpenAI` | Artificial Intelligence | AI-powered features within the TMS |
+
+## Integration categories
+
+<AccordionGroup>
+  <Accordion title="Mapping & Routing">
+    Integrations in this category provide address geocoding, route calculation, and distance data. Trenova uses routing integrations to populate mileage on shipments and to validate addresses at data entry.
+
+    You can configure **Google Maps** or **HERE** as your routing provider. If you have both enabled, you can use distance overrides to control which source is used for specific lane pairs.
+  </Accordion>
+  <Accordion title="Telematics">
+    Telematics integrations connect Trenova to your fleet's ELD and GPS hardware. **Samsara** provides real-time vehicle location, driver HOS status, and vehicle fault data that surfaces in the dispatch board and worker records.
+  </Accordion>
+  <Accordion title="Artificial Intelligence">
+    AI integrations power optional intelligent features such as document extraction, anomaly detection, and natural-language data entry assistance. **OpenAI** is the current provider for these capabilities.
+  </Accordion>
+  <Accordion title="Freight & Logistics">
+    This category is reserved for future freight marketplace and load board integrations. No integrations in this category are available yet.
+  </Accordion>
+</AccordionGroup>
+
+## Configuring an integration
+
+1. Navigate to **Admin → Integrations**.
+2. Locate the integration in the catalog and select **Configure**.
+3. Enter the required credentials (API key, client ID, or secret — exact fields vary by integration).
+4. Toggle **Enabled** to activate the integration.
+5. Select **Save**.
+
+After saving you can select **Test Connection** to verify that Trenova can reach the external service with the credentials you provided.
+
+<Note>
+  Only users with the `integration` resource permission and at least the `update` operation can modify integration settings. Users with only `read` permission can view the current configuration but cannot change credentials or toggle the enabled state.
+</Note>
+
+## Google Maps
+
+Google Maps is used for:
+
+- **Address validation** — Trenova submits addresses to the Maps Geocoding API and normalizes the result.
+- **Distance calculation** — Route mileage is fetched from the Distance Matrix API and stored on the shipment move.
+- **Distance overrides** — When a distance override record exists for a lane, it takes precedence over the value returned by Google Maps.
+
+**Required credential:** A Google Maps Platform API key with the Geocoding API and Distance Matrix API enabled.
+
+## HERE
+
+HERE provides an alternative to Google Maps for routing and distance calculation. The configuration and behavior is equivalent — enable HERE if your organization has an existing contract with HERE or if you need HERE-specific routing features such as truck routing profiles.
+
+**Required credentials:** A HERE API key.
+
+## Samsara
+
+The Samsara integration provides live fleet visibility inside Trenova:
+
+- **Vehicle tracking** — GPS positions for all tracked assets appear on the dispatch map.
+- **ELD compliance** — Driver Hours of Service (HOS) status is synced from Samsara to worker records.
+- **Worker sync** — Samsara driver records can be synced to Trenova worker records, keeping names, license numbers, and status in alignment.
+- **Vehicle sync** — Samsara vehicle records can be synced to Trenova tractor records.
+
+**Required credential:** A Samsara API token with Fleet read access.
+
+<Warning>
+  Samsara sync jobs run on a schedule. Changes made directly in Samsara may take several minutes to appear in Trenova. Avoid editing synced fields in Trenova, as they will be overwritten on the next sync.
+</Warning>
+
+## OpenAI
+
+The OpenAI integration enables AI-assisted features within Trenova. The specific features available depend on your Trenova plan.
+
+**Required credential:** An OpenAI API key associated with a project that has access to the models used by Trenova.
+
+## Security
+
+<Note>
+  All integration credentials are stored encrypted at rest. Credentials are never returned in plaintext through the API — the configuration endpoint returns a masked representation of stored secrets. To rotate a credential, enter the new value and save; the old credential is immediately replaced.
+</Note>
+
+The `enabledById` field records which user last enabled each integration, and this information is visible in the integration detail view and in the [Audit Logs](/admin/audit-logs).
+
+<CardGroup cols={2}>
+  <Card title="Audit Logs" icon="scroll" href="/admin/audit-logs">
+    See a record of every integration change
+  </Card>
+  <Card title="Organizations" icon="building" href="/admin/organizations">
+    Manage organization-level settings
+  </Card>
+</CardGroup>

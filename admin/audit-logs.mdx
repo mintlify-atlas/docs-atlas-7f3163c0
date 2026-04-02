@@ -1,0 +1,126 @@
+---
+title: "Audit Logs"
+description: "Track all changes and user actions across your organization"
+---
+
+Trenova records an audit entry for every create, update, and delete operation performed on a domain entity. These entries form a tamper-evident trail that you can use for compliance reviews, incident investigation, and change management.
+
+Navigate to **Admin → Audit Logs** to view and search your organization's audit history.
+
+## What audit logs capture
+
+Every time a user or API key performs a write operation, Trenova creates an audit entry with the following information:
+
+| Field | Description |
+|---|---|
+| **Resource** | The entity type that was changed (e.g., `shipment`, `worker`, `invoice`) |
+| **Resource ID** | The unique identifier of the specific record that changed |
+| **Operation** | The action taken: `create`, `update`, or `delete` |
+| **Timestamp** | Unix epoch time when the operation was recorded |
+| **Principal Type** | Whether the action was taken by a `session_user` (interactive login) or an `api_key` |
+| **User** | The user account that performed the action (for session-based operations) |
+| **API Key** | The API key used (for programmatic operations) |
+| **Previous State** | A JSON snapshot of the record's field values before the change |
+| **Current State** | A JSON snapshot of the record's field values after the change |
+| **Changes** | A diff object that isolates only the fields that changed |
+| **IP Address** | The client IP address (supports IPv6) |
+| **User Agent** | The HTTP client or browser that made the request |
+| **Correlation ID** | A request-scoped ID for tracing multi-step operations |
+| **Comment** | An optional free-text note attached to the entry |
+| **Category** | `System` (automated operations) or `User` (user-initiated operations) |
+| **Sensitive Data** | Flag indicating the entry involves sensitive fields |
+| **Critical** | Flag indicating a high-importance event such as a permission or credential change |
+
+## Viewing audit logs
+
+From **Admin → Audit Logs**, you can:
+
+- Browse the full list of audit entries for your organization, sorted by timestamp descending.
+- Select any entry to view the full `previousState`, `currentState`, and `changes` JSON.
+- View all audit history for a specific record by navigating to that record and selecting **Audit History**.
+
+## Filtering audit logs
+
+Use the filter bar to narrow down entries by:
+
+- **Resource type** — Filter to a specific entity such as `shipment` or `user`
+- **Operation** — Filter to `create`, `update`, or `delete`
+- **Category** — Filter to `System` or `User` entries
+- **User** — Filter by the user who made the change
+- **Date range** — Restrict results to a specific time window
+- **Critical only** — Show only entries flagged as critical
+- **Sensitive data** — Show only entries that involve sensitive fields
+
+You can also search by **resource ID**, **IP address**, **user agent**, **correlation ID**, and **comment text**.
+
+## Table change alerts
+
+Table change alerts (TCA) let you configure real-time notifications when specific database tables are modified. This is useful for monitoring high-value records without polling the audit log.
+
+Navigate to **Admin → Table Change Alerts** to manage subscriptions.
+
+### Subscription fields
+
+| Field | Description |
+|---|---|
+| **Name** | A descriptive label for this alert subscription |
+| **Table Name** | The database table to watch (e.g., `shipments`, `workers`) |
+| **Record ID** | Optional — restrict the alert to a single specific record |
+| **Event Types** | Which database events trigger the alert: `INSERT`, `UPDATE`, and/or `DELETE` |
+| **Watched Columns** | Optional list of specific columns; the alert only fires when one of these columns changes |
+| **Conditions** | Optional filter rules that must match for the alert to fire (see below) |
+| **Condition Match** | Whether `all` conditions or `any` condition must match |
+| **Custom Title** | The notification title (max 500 characters) |
+| **Custom Message** | The notification body (max 5,000 characters) |
+| **Priority** | Alert urgency: `critical`, `high`, `medium`, or `low` |
+| **Status** | `Active` or `Paused` — paused subscriptions do not fire |
+
+### Alert conditions
+
+Each condition compares a field on the changed record against a value. You can combine multiple conditions and choose whether all of them or any one of them must be true.
+
+| Operator | Description |
+|---|---|
+| `eq` | Field equals value |
+| `neq` | Field does not equal value |
+| `gt` | Field is greater than value |
+| `gte` | Field is greater than or equal to value |
+| `lt` | Field is less than value |
+| `lte` | Field is less than or equal to value |
+| `is_null` | Field is null (no value required) |
+| `is_not_null` | Field is not null (no value required) |
+| `contains` | Field contains the value as a substring |
+| `not_contains` | Field does not contain the value |
+| `changed_to` | Field's new value equals value |
+| `changed_from` | Field's previous value equals value |
+| `changed` | Field changed at all (no value required) |
+
+### Example: alert when a shipment status changes to Cancelled
+
+1. Navigate to **Admin → Table Change Alerts → New Subscription**.
+2. Set **Table Name** to `shipments`.
+3. Set **Event Types** to `UPDATE`.
+4. Add a condition: **Field** = `status`, **Operator** = `changed_to`, **Value** = `Cancelled`.
+5. Set **Priority** to `high`.
+6. Save the subscription.
+
+## Data retention
+
+The default audit log retention period is **120 days**. You can adjust this in **Admin → Settings → Data Retention** by changing the `auditRetentionPeriod` value (in days). Entries older than the retention period are purged automatically.
+
+<Warning>
+  Reducing the retention period permanently removes older audit entries that fall outside the new window. This action cannot be undone. Ensure you have exported any entries you need to keep before reducing the retention period.
+</Warning>
+
+## Exporting audit logs
+
+To export audit entries, use the Trenova API with the appropriate filters and collect the paginated results. Exporting requires the `audit_log` resource permission with the `read` operation.
+
+<CardGroup cols={2}>
+  <Card title="Users & Roles" icon="users" href="/admin/users-roles">
+    Control who can view audit logs via resource permissions
+  </Card>
+  <Card title="API Keys" icon="key" href="/developer/api-keys">
+    API key actions are attributed separately in audit entries
+  </Card>
+</CardGroup>

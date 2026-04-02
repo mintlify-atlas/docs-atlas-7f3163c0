@@ -1,0 +1,460 @@
+---
+title: "Hazardous Materials API"
+description: "Manage hazardous material records and segregation rules"
+---
+
+Hazardous materials represent substances classified under DOT 49 CFR regulations. Each record captures the DOT hazard class, UN number, packing group, shipping name, emergency contact information, and handling flags. Segregation rules define how pairs of hazard classes must be separated during transport.
+
+## Endpoints
+
+### Hazardous materials
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/hazardous-materials/` | List hazardous materials |
+| `GET` | `/hazardous-materials/{hazardousMaterialID}` | Get a hazardous material |
+| `POST` | `/hazardous-materials/` | Create a hazardous material |
+| `PUT` | `/hazardous-materials/{hazardousMaterialID}/` | Replace a hazardous material |
+| `PATCH` | `/hazardous-materials/{hazardousMaterialID}/` | Partially update a hazardous material |
+| `POST` | `/hazardous-materials/bulk-update-status/` | Bulk update statuses |
+| `GET` | `/hazardous-materials/select-options/` | List for select inputs |
+| `GET` | `/hazardous-materials/select-options/{hazardousMaterialID}/` | Get a single option |
+
+---
+
+## List hazardous materials
+
+<ParamField query="query" type="string">
+  Full-text search against `name`, `description`, `class`, and `packingGroup`.
+</ParamField>
+
+<ParamField query="limit" type="number" default="10">
+  Number of results per page. Between 1 and 100.
+</ParamField>
+
+<ParamField query="offset" type="number" default="0">
+  Zero-based page offset.
+</ParamField>
+
+```bash
+curl -X GET "https://api.example.com/hazardous-materials/?limit=20" \
+  -H "Authorization: Bearer {token}"
+```
+
+```json
+{
+  "count": 1,
+  "next": null,
+  "results": [
+    {
+      "id": "hm_01J9ABCDEF",
+      "businessUnitId": "bu_01J9XYZ",
+      "organizationId": "org_01J9XYZ",
+      "status": "Active",
+      "code": "UN1203",
+      "name": "Gasoline",
+      "description": "Motor fuel, petroleum distillate",
+      "class": "HazardClass3",
+      "unNumber": "1203",
+      "packingGroup": "II",
+      "subsidiaryHazardClass": "",
+      "ergGuideNumber": "128",
+      "labelCodes": "3",
+      "specialProvisions": "B1, B33",
+      "properShippingName": "Gasoline",
+      "handlingInstructions": "Keep away from heat and open flame.",
+      "emergencyContact": "CHEMTREC",
+      "emergencyContactPhoneNumber": "+18004249300",
+      "quantityThreshold": "",
+      "placardRequired": true,
+      "isReportableQuantity": false,
+      "marinePollutant": false,
+      "inhalationHazard": false,
+      "version": 1,
+      "createdAt": 1700000000,
+      "updatedAt": 1700000000
+    }
+  ]
+}
+```
+
+---
+
+## Get a hazardous material
+
+<ParamField path="hazardousMaterialID" type="string" required>
+  The hazardous material ID prefixed with `hm_`.
+</ParamField>
+
+```bash
+curl -X GET "https://api.example.com/hazardous-materials/hm_01J9ABCDEF" \
+  -H "Authorization: Bearer {token}"
+```
+
+---
+
+## Create a hazardous material
+
+### Request body
+
+<ParamField body="code" type="string" required>
+  Short identifier, typically the UN number string (e.g., `UN1203`). Up to 10 characters.
+</ParamField>
+
+<ParamField body="name" type="string" required>
+  Material name. Between 1 and 100 characters.
+</ParamField>
+
+<ParamField body="description" type="string" required>
+  Detailed material description.
+</ParamField>
+
+<ParamField body="status" type="string" required default="Active">
+  Record status. `Active` or `Inactive`.
+</ParamField>
+
+<ParamField body="class" type="string" required>
+  DOT hazard class. See [Hazardous class values](#hazardous-class-values).
+</ParamField>
+
+<ParamField body="packingGroup" type="string" required>
+  DOT packing group. `I`, `II`, or `III`.
+</ParamField>
+
+<ParamField body="unNumber" type="string">
+  UN identification number (4 digits, without `UN` prefix).
+</ParamField>
+
+<ParamField body="subsidiaryHazardClass" type="string">
+  Secondary hazard class designation. Up to 20 characters.
+</ParamField>
+
+<ParamField body="ergGuideNumber" type="string">
+  Emergency Response Guidebook guide number. Up to 10 characters.
+</ParamField>
+
+<ParamField body="labelCodes" type="string">
+  DOT label codes (comma-separated). Up to 50 characters.
+</ParamField>
+
+<ParamField body="specialProvisions" type="string">
+  Applicable special provisions (comma-separated or single value).
+</ParamField>
+
+<ParamField body="properShippingName" type="string">
+  DOT proper shipping name.
+</ParamField>
+
+<ParamField body="handlingInstructions" type="string">
+  Special handling instructions for drivers.
+</ParamField>
+
+<ParamField body="emergencyContact" type="string">
+  Name of the 24-hour emergency contact (e.g., `CHEMTREC`).
+</ParamField>
+
+<ParamField body="emergencyContactPhoneNumber" type="string">
+  Emergency contact phone number.
+</ParamField>
+
+<ParamField body="quantityThreshold" type="string">
+  Reportable quantity threshold. Required when `isReportableQuantity` is `true`. Up to 20 characters.
+</ParamField>
+
+<ParamField body="placardRequired" type="boolean" default="false">
+  Whether DOT placarding is required for shipments carrying this material.
+</ParamField>
+
+<ParamField body="isReportableQuantity" type="boolean" default="false">
+  Whether the material has an EPA reportable quantity designation.
+</ParamField>
+
+<ParamField body="marinePollutant" type="boolean" default="false">
+  Whether the material is classified as a marine pollutant.
+</ParamField>
+
+<ParamField body="inhalationHazard" type="boolean" default="false">
+  Whether the material poses an inhalation hazard.
+</ParamField>
+
+```bash
+curl -X POST "https://api.example.com/hazardous-materials/" \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code": "UN1203",
+    "name": "Gasoline",
+    "description": "Motor fuel, petroleum distillate",
+    "status": "Active",
+    "class": "HazardClass3",
+    "packingGroup": "II",
+    "unNumber": "1203",
+    "ergGuideNumber": "128",
+    "labelCodes": "3",
+    "properShippingName": "Gasoline",
+    "emergencyContact": "CHEMTREC",
+    "emergencyContactPhoneNumber": "+18004249300",
+    "placardRequired": true
+  }'
+```
+
+---
+
+## Bulk update status
+
+<Note>
+  This endpoint is not available to API key authentication. It requires a user session token.
+</Note>
+
+```bash
+curl -X POST "https://api.example.com/hazardous-materials/bulk-update-status/" \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "hazardousMaterialIds": ["hm_01J9ABCDEF"],
+    "status": "Inactive"
+  }'
+```
+
+---
+
+## Response fields
+
+<ResponseField name="id" type="string">
+  Unique ID with `hm_` prefix.
+</ResponseField>
+
+<ResponseField name="businessUnitId" type="string">
+  Owning business unit ID.
+</ResponseField>
+
+<ResponseField name="organizationId" type="string">
+  Owning organization ID.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  `Active` or `Inactive`.
+</ResponseField>
+
+<ResponseField name="code" type="string">
+  Short material code.
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Material name.
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Material description.
+</ResponseField>
+
+<ResponseField name="class" type="string">
+  DOT hazard class designation.
+</ResponseField>
+
+<ResponseField name="unNumber" type="string">
+  4-digit UN identification number.
+</ResponseField>
+
+<ResponseField name="packingGroup" type="string">
+  `I`, `II`, or `III`.
+</ResponseField>
+
+<ResponseField name="subsidiaryHazardClass" type="string">
+  Secondary hazard classification.
+</ResponseField>
+
+<ResponseField name="ergGuideNumber" type="string">
+  ERG guide number.
+</ResponseField>
+
+<ResponseField name="labelCodes" type="string">
+  DOT label codes.
+</ResponseField>
+
+<ResponseField name="specialProvisions" type="string">
+  Applicable special provisions.
+</ResponseField>
+
+<ResponseField name="properShippingName" type="string">
+  DOT proper shipping name.
+</ResponseField>
+
+<ResponseField name="handlingInstructions" type="string">
+  Driver handling instructions.
+</ResponseField>
+
+<ResponseField name="emergencyContact" type="string">
+  Emergency contact organization name.
+</ResponseField>
+
+<ResponseField name="emergencyContactPhoneNumber" type="string">
+  Emergency contact phone number.
+</ResponseField>
+
+<ResponseField name="quantityThreshold" type="string">
+  Reportable quantity threshold.
+</ResponseField>
+
+<ResponseField name="placardRequired" type="boolean">
+  Whether DOT placarding is required.
+</ResponseField>
+
+<ResponseField name="isReportableQuantity" type="boolean">
+  Whether the material has an EPA reportable quantity.
+</ResponseField>
+
+<ResponseField name="marinePollutant" type="boolean">
+  Whether the material is a marine pollutant.
+</ResponseField>
+
+<ResponseField name="inhalationHazard" type="boolean">
+  Whether the material is an inhalation hazard.
+</ResponseField>
+
+<ResponseField name="version" type="number">
+  Optimistic concurrency version number.
+</ResponseField>
+
+<ResponseField name="createdAt" type="number">
+  Creation timestamp in Unix seconds.
+</ResponseField>
+
+<ResponseField name="updatedAt" type="number">
+  Last update timestamp in Unix seconds.
+</ResponseField>
+
+---
+
+## Hazardous class values
+
+These values correspond to the 49 CFR DOT hazard classification system.
+
+| Value | DOT Class | Description |
+|-------|-----------|-------------|
+| `HazardClass1` | 1 | Explosives (general) |
+| `HazardClass1And1` | 1.1 | Mass explosion hazard |
+| `HazardClass1And2` | 1.2 | Projection hazard |
+| `HazardClass1And3` | 1.3 | Fire hazard |
+| `HazardClass1And4` | 1.4 | Minor explosion hazard |
+| `HazardClass1And5` | 1.5 | Insensitive substances |
+| `HazardClass1And6` | 1.6 | Extremely insensitive articles |
+| `HazardClass2And1` | 2.1 | Flammable gas |
+| `HazardClass2And2` | 2.2 | Non-flammable compressed gas |
+| `HazardClass2And3` | 2.3 | Toxic gas |
+| `HazardClass3` | 3 | Flammable liquids |
+| `HazardClass4And1` | 4.1 | Flammable solids |
+| `HazardClass4And2` | 4.2 | Spontaneously combustible |
+| `HazardClass4And3` | 4.3 | Dangerous when wet |
+| `HazardClass5And1` | 5.1 | Oxidizers |
+| `HazardClass5And2` | 5.2 | Organic peroxides |
+| `HazardClass6And1` | 6.1 | Toxic substances |
+| `HazardClass6And2` | 6.2 | Infectious substances |
+| `HazardClass7` | 7 | Radioactive material |
+| `HazardClass8` | 8 | Corrosives |
+| `HazardClass9` | 9 | Miscellaneous hazardous materials |
+
+### Packing group values
+
+| Value | Description |
+|-------|-------------|
+| `I` | Great danger |
+| `II` | Medium danger |
+| `III` | Minor danger |
+
+---
+
+## Hazmat segregation rules
+
+Segregation rules define which pairs of hazard classes cannot be loaded together, or must be separated by a minimum distance or physical barrier.
+
+### Segregation rule endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/hazmat-segregation-rules/` | List segregation rules |
+| `GET` | `/hazmat-segregation-rules/{ruleID}/` | Get a segregation rule |
+| `POST` | `/hazmat-segregation-rules/` | Create a segregation rule |
+| `PUT` | `/hazmat-segregation-rules/{ruleID}/` | Replace a segregation rule |
+| `PATCH` | `/hazmat-segregation-rules/{ruleID}/` | Partially update a rule |
+
+### Segregation rule request body
+
+<ParamField body="name" type="string" required>
+  Rule name. Between 1 and 100 characters.
+</ParamField>
+
+<ParamField body="classA" type="string" required>
+  First hazard class in the pair. See [Hazardous class values](#hazardous-class-values).
+</ParamField>
+
+<ParamField body="classB" type="string" required>
+  Second hazard class in the pair. When `classA` equals `classB`, both `hazmatAId` and `hazmatBId` must point to different specific materials.
+</ParamField>
+
+<ParamField body="segregationType" type="string" required>
+  How the classes must be separated. See [Segregation type values](#segregation-type-values).
+</ParamField>
+
+<ParamField body="status" type="string" default="Active">
+  `Active` or `Inactive`.
+</ParamField>
+
+<ParamField body="description" type="string">
+  Rule description.
+</ParamField>
+
+<ParamField body="referenceCode" type="string">
+  Regulatory reference code. Up to 100 characters.
+</ParamField>
+
+<ParamField body="regulationSource" type="string">
+  Regulatory source document (e.g., `49 CFR 177.848`). Up to 100 characters.
+</ParamField>
+
+<ParamField body="hazmatAId" type="string">
+  Optional: ID of a specific hazardous material for class A.
+</ParamField>
+
+<ParamField body="hazmatBId" type="string">
+  Optional: ID of a specific hazardous material for class B.
+</ParamField>
+
+<ParamField body="minimumDistance" type="number">
+  Minimum separation distance. Required when `segregationType` is `Distance`. Must be greater than 0.
+</ParamField>
+
+<ParamField body="distanceUnit" type="string">
+  Unit for `minimumDistance`. Required when `minimumDistance` is set. One of `FT`, `M`, `IN`, `CM`.
+</ParamField>
+
+<ParamField body="hasExceptions" type="boolean" default="false">
+  Whether exceptions to this rule exist.
+</ParamField>
+
+<ParamField body="exceptionNotes" type="string">
+  Exception details. Required when `hasExceptions` is `true`. Between 5 and 1000 characters.
+</ParamField>
+
+```bash
+curl -X POST "https://api.example.com/hazmat-segregation-rules/" \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Explosives / Flammable Liquids",
+    "classA": "HazardClass1",
+    "classB": "HazardClass3",
+    "segregationType": "Prohibited",
+    "referenceCode": "49CFR177.848(d)",
+    "regulationSource": "49 CFR 177.848"
+  }'
+```
+
+### Segregation type values
+
+| Value | Description |
+|-------|-------------|
+| `Prohibited` | The two classes may not be loaded together under any circumstances |
+| `Separated` | The classes must be physically separated in the vehicle |
+| `Distance` | A minimum separation distance must be maintained (requires `minimumDistance` and `distanceUnit`) |
+| `Barrier` | A physical barrier must exist between the two materials |

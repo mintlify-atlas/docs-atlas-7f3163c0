@@ -1,0 +1,164 @@
+---
+title: "API Overview"
+description: "Introduction to the Trenova REST API — base URL, versioning, request format, and error handling"
+---
+
+The Trenova REST API gives you programmatic access to all TMS data: shipments, fleet, workers, customers, locations, and more. All endpoints live under `/api/v1`.
+
+## Base URL
+
+```
+https://your-domain/api/v1
+```
+
+Replace `your-domain` with your Trenova instance hostname (e.g., `trenova.example.com` or `localhost`).
+
+## Authentication
+
+All endpoints except `/auth/login`, `/auth/validate-session`, and `/system/version` require authentication. See [Authentication](/api/authentication) for details.
+
+## Request format
+
+Send requests with `Content-Type: application/json` and a JSON body.
+
+```bash
+curl -X POST https://your-domain/api/v1/shipments \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer trv_your_api_key" \
+  -d '{"proNumber": "PRO-001", "customerId": "cus_...", ...}'
+```
+
+## Response format
+
+All responses return JSON. Successful responses include the resource object directly or a paginated list.
+
+```json
+{
+  "id": "shp_01J...",
+  "proNumber": "PRO-001",
+  "status": "New",
+  "createdAt": 1714000000
+}
+```
+
+Timestamps are returned as Unix epoch integers (seconds).
+
+IDs use the PULID format — a prefix followed by a ULID (e.g., `shp_01J...` for shipments, `trk_01J...` for tractors).
+
+## Pagination
+
+List endpoints support `limit` and `offset` query parameters:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `limit` | integer | 10 | Number of records to return |
+| `offset` | integer | 0 | Number of records to skip |
+
+```bash
+GET /api/v1/shipments?limit=25&offset=50
+```
+
+## Error format
+
+Errors follow a structured format with field-level detail for validation failures:
+
+```json
+{
+  "type": "ValidationError",
+  "title": "Validation failed",
+  "status": 422,
+  "detail": "One or more fields are invalid",
+  "errors": [
+    {
+      "field": "proNumber",
+      "message": "PRO number is required",
+      "code": "required"
+    }
+  ]
+}
+```
+
+Nested field paths use dot notation: `moves[0].stops[0].locationId`.
+
+## HTTP status codes
+
+| Code | Meaning |
+|------|---------|
+| `200` | Success |
+| `201` | Created |
+| `400` | Bad request |
+| `401` | Unauthorized — no valid session or API key |
+| `403` | Forbidden — authenticated but lacks permission |
+| `404` | Not found |
+| `422` | Unprocessable — validation failed with field errors |
+| `500` | Internal server error |
+
+## Rate limiting
+
+The API enforces rate limiting per client:
+
+- **60 requests per minute** (default)
+- **Burst size**: 10 requests
+
+When rate limited, you receive a `429 Too Many Requests` response. Reduce your request frequency or contact your administrator to adjust limits.
+
+## Request IDs
+
+Every response includes a unique `X-Request-ID` header. Include this in bug reports or support requests to help trace specific requests.
+
+## Health check
+
+A public health endpoint requires no authentication:
+
+```bash
+GET /api/v1/health
+```
+
+## Version endpoint
+
+```bash
+GET /api/v1/system/version
+```
+
+Returns the running version of the TMS service.
+
+## API resources
+
+<CardGroup cols={2}>
+  <Card title="Shipments" icon="truck" href="/api/shipments">
+    Create, list, and manage shipments
+  </Card>
+  <Card title="Shipment Moves" icon="route" href="/api/shipment-moves">
+    Manage moves and stops within a shipment
+  </Card>
+  <Card title="Assignments" icon="user-check" href="/api/assignments">
+    Assign drivers and equipment to moves
+  </Card>
+  <Card title="Tractors" icon="car-side" href="/api/tractors">
+    Manage tractor records
+  </Card>
+  <Card title="Trailers" icon="trailer" href="/api/trailers">
+    Manage trailer records
+  </Card>
+  <Card title="Fleet Codes" icon="tag" href="/api/fleet-codes">
+    Organize fleet with codes
+  </Card>
+  <Card title="Workers" icon="users" href="/api/workers">
+    Manage driver and worker records
+  </Card>
+  <Card title="Customers" icon="building" href="/api/customers">
+    Manage customer accounts
+  </Card>
+  <Card title="Locations" icon="map-pin" href="/api/locations">
+    Manage shipping locations
+  </Card>
+  <Card title="Commodities" icon="box" href="/api/commodities">
+    Manage cargo commodity types
+  </Card>
+  <Card title="Hazmat" icon="triangle-exclamation" href="/api/hazmat">
+    Hazardous materials and segregation rules
+  </Card>
+  <Card title="Service Types" icon="list" href="/api/service-types">
+    Manage service type codes
+  </Card>
+</CardGroup>
